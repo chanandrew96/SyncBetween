@@ -1,0 +1,27 @@
+{
+  "name": "syncbetween",
+  "version": "1.0.0",
+  "description": "This repo use to create a application that can help user to transfer data between different devices",
+  "main": "server.js",
+  "scripts": {
+    "start": "node server.js",
+    "dev": "node server.js",
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/chanandrew96/SyncBetween.git"
+  },
+  "keywords": [],
+  "author": "",
+  "license": "ISC",
+  "bugs": {
+    "url": "https://github.com/chanandrew96/SyncBetween/issues"
+  },
+  "homepage": "https://github.com/chanandrew96/SyncBetween#readme",
+  "dependencies": {
+    "express": "^5.1.0",
+    "nanoid": "^5.1.6",
+    "ws": "^8.18.3"
+  }
+}

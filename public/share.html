@@ -1,0 +1,47 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>SyncBetween Share</title>
+    <link rel="stylesheet" href="styles.css" />
+    <script src="share.js" defer></script>
+  </head>
+  <body>
+    <header class="app-header">
+      <h1>SyncBetween</h1>
+      <p>Receiving shared content</p>
+    </header>
+    <main class="app-main single-column">
+      <section class="card">
+        <h2 id="session-status">Connecting...</h2>
+        <div id="session-details" hidden>
+          <div id="file-view" hidden>
+            <p>
+              You are receiving a file:
+              <strong id="file-name"></strong>
+            </p>
+            <p id="file-size"></p>
+            <button id="download-button" hidden>Download File</button>
+          </div>
+          <div id="video-preview" hidden>
+            <video id="video-element" controls playsinline></video>
+          </div>
+          <div id="image-preview" hidden>
+            <img id="image-element" alt="Shared content preview" />
+          </div>
+          <div id="text-view" hidden>
+            <p>This text was shared with you:</p>
+            <pre id="shared-text"></pre>
+            <button id="copy-button">Copy Text</button>
+          </div>
+        </div>
+        <div id="error-message" class="hint" hidden></div>
+      </section>
+    </main>
+    <footer class="app-footer">
+      <small>Keep this window open until the transfer completes.</small>
+    </footer>
+  </body>
+</html>
+

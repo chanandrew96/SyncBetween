@@ -1,0 +1,67 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>SyncBetween</title>
+    <link rel="stylesheet" href="styles.css" />
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/qrious/4.0.2/qrious.min.js" defer></script>
+    <script src="script.js" defer></script>
+  </head>
+  <body>
+    <header class="app-header">
+      <h1>SyncBetween</h1>
+      <p>Share files or text securely across your devices.</p>
+    </header>
+
+    <main class="app-main">
+      <section class="card">
+        <h2>Share File</h2>
+        <p>Select an image or video to create a share link.</p>
+        <form id="file-share-form">
+          <label class="file-input">
+            <input type="file" id="file-input" accept="image/*,video/*" />
+            <span id="file-label">Choose image or video</span>
+          </label>
+          <button type="submit" id="file-submit" disabled>Generate Share Link</button>
+        </form>
+        <div class="share-result" id="file-share-result" hidden>
+          <h3>Share Ready</h3>
+          <p>
+            Share this link with another device:<br />
+            <a id="file-share-link" href="#" target="_blank" rel="noopener"></a>
+          </p>
+          <div class="qr-wrapper">
+            <canvas id="file-qr"></canvas>
+          </div>
+          <p class="hint">Open the link or scan the QR code from another device to download.</p>
+        </div>
+      </section>
+
+      <section class="card">
+        <h2>Share Text</h2>
+        <p>Paste any text to share with another device.</p>
+        <form id="text-share-form">
+          <textarea id="text-input" placeholder="Enter your text here..." rows="6"></textarea>
+          <button type="submit" id="text-submit" disabled>Generate Share Link</button>
+        </form>
+        <div class="share-result" id="text-share-result" hidden>
+          <h3>Share Ready</h3>
+          <p>
+            Share this link with another device:<br />
+            <a id="text-share-link" href="#" target="_blank" rel="noopener"></a>
+          </p>
+          <div class="qr-wrapper">
+            <canvas id="text-qr"></canvas>
+          </div>
+          <p class="hint">The recipient will be prompted to copy the text content.</p>
+        </div>
+      </section>
+    </main>
+
+    <footer class="app-footer">
+      <small>Data is stored temporarily for your current session only.</small>
+    </footer>
+  </body>
+</html>
+
