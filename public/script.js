@@ -72,6 +72,7 @@ function setupFileSharing() {
   const expiryPreset = document.querySelector('#file-expiry-preset');
   const expiryCustom = document.querySelector('#file-expiry-custom');
   const expiryInfo = document.querySelector('#file-expiry-info');
+  const openOnceCheckbox = document.querySelector('#file-open-once');
 
   let isSubmitting = false;
 
@@ -154,6 +155,7 @@ function setupFileSharing() {
       const expiryMinutes = getExpiryMinutes();
       const passphraseInput = document.querySelector('#file-passphrase');
       const passphrase = passphraseInput.value.trim() || null;
+      const openOnce = openOnceCheckbox ? !!openOnceCheckbox.checked : false;
       
       const response = await fetch('/api/session/file', {
         method: 'POST',
@@ -162,6 +164,7 @@ function setupFileSharing() {
           files: fileData,
           expiresInMinutes: expiryMinutes,
           passphrase: passphrase,
+          openOnce,
         }),
       });
 
@@ -208,6 +211,7 @@ function setupTextSharing() {
   const expiryPreset = document.querySelector('#text-expiry-preset');
   const expiryCustom = document.querySelector('#text-expiry-custom');
   const expiryInfo = document.querySelector('#text-expiry-info');
+  const openOnceCheckbox = document.querySelector('#text-open-once');
 
   let isSubmitting = false;
 
@@ -255,6 +259,7 @@ function setupTextSharing() {
       const expiryMinutes = getExpiryMinutes();
       const passphraseInput = document.querySelector('#text-passphrase');
       const passphrase = passphraseInput.value.trim() || null;
+      const openOnce = openOnceCheckbox ? !!openOnceCheckbox.checked : false;
       
       const response = await fetch('/api/session/text', {
         method: 'POST',
@@ -263,6 +268,7 @@ function setupTextSharing() {
           text,
           expiresInMinutes: expiryMinutes,
           passphrase: passphrase,
+          openOnce,
         }),
       });
 

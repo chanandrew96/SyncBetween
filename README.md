@@ -4,9 +4,11 @@ A web application that helps users share data (images, videos, and text) between
 
 ## Features
 
-- **File Sharing**: Select images or videos from your device to create a shareable link with QR code
-- **Text Sharing**: Share text content with automatic clipboard copy prompt on the receiving device
-- **Real-time Transfer**: Uses WebSocket for instant data transfer between devices
+- **File & Text Sharing**: Share any file type or plain text with QR code support
+- **Real-time Streaming**: Uses WebSockets with chunked streaming for faster large-file transfers
+- **Multi-file Links**: Bundle multiple photos/videos/files into a single share link
+- **Optional Passphrase**: Protect a share with a user-defined passphrase (5 retry limit before lock)
+- **Open-Once Sessions**: Optionally auto-delete the session once the recipient finishes downloading
 - **QR Code Support**: Generate QR codes for easy access from mobile devices
 
 ## Prerequisites
@@ -66,18 +68,20 @@ PORT=8080 npm start
 1. Open the application in your browser
 2. Click "Choose image or video" and select a file
 3. Click "Generate Share Link"
-4. A shareable link and QR code will be displayed
-5. Open the link or scan the QR code from another device
-6. The receiving device will automatically download or display the file
+4. (Optional) Enter a passphrase and/or enable **Open once only**
+5. A shareable link and QR code will be displayed
+6. Open the link or scan the QR code from another device
+7. The receiving device will automatically download or display the file
 
 ### Sharing Text
 
 1. Open the application in your browser
 2. Paste or type your text in the text area
-3. Click "Generate Share Link"
-4. A shareable link and QR code will be displayed
-5. Open the link or scan the QR code from another device
-6. The receiving device will prompt to copy the text to clipboard and display it
+3. (Optional) Enter a passphrase and/or enable **Open once only**
+4. Click "Generate Share Link"
+5. A shareable link and QR code will be displayed
+6. Open the link or scan the QR code from another device
+7. The receiving device will prompt to copy the text to clipboard and display it
 
 ## Deployment
 
@@ -235,13 +239,12 @@ SyncBetween 是一個基於 WebSocket 的即時檔案與文字分享應用程式
 
 ## Security Notes
 
-- This application is designed for local/trusted network use
-- For production use, consider adding:
-  - Authentication/authorization
-  - Rate limiting
-  - File type validation
-  - Session expiration cleanup (already implemented)
-  - HTTPS/WSS encryption
+- Application is designed for local/trusted network use; secure deployment requires HTTPS/WSS and a hardened environment (reverse proxy, TLS certificates, isolation).
+- Every session expires automatically (default 1 hour) and data resides only in memory until expiry, server restart, or manual deletion.
+- **Passphrase protection** is available per share. After 5 incorrect attempts the session locks and data is discarded.
+- **Open once only** option deletes the session as soon as the first recipient finishes the transfer.
+- For sensitive content, combine passphrase + open-once, share links privately, and delete sessions promptly.
+- Consider adding authentication, rate limiting, stricter file validation, and additional monitoring if deploying to the public internet.
 
 ## License
 

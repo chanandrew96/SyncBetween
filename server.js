@@ -12,6 +12,7 @@ const wss = new WebSocketServer({ server, path: '/ws' });
 const CHUNK_SIZE = 64 * 1024; // 64 KB chunks for streaming
 const SESSION_EXPIRY_MS = 60 * 60 * 1000; // 1 hour in milliseconds
 const sessions = new Map();
+const MAX_PASSPHRASE_ATTEMPTS = 5;
 
 app.use(express.json({ limit: '500mb' })); // Increased limit for metadata
 app.use(express.static(path.join(__dirname, 'public')));
@@ -40,7 +41,15 @@ function verifyPassphrase(passphrase, hash) {
   return hashPassphrase(passphrase) === hash;
 }
 
-function createSession(type, payload, expiresInMinutes = null, passphraseHash = null) {
+function normalizeBoolean(value) {
+  if (typeof value === 'string') {
+    return value.toLowerCase() === 'true' || value === '1' || value === 'on';
+  }
+  return Boolean(value);
+}
+
+function createSession(type, payload, expiresInMinutes = null, options = {}) {
+  const { passphraseHash = null, openOnce = false } = options || {};
   const id = nanoid(10);
   const expiryMs = expiresInMinutes 
     ? Math.min(expiresInMinutes * 60 * 1000, 7 * 24 * 60 * 60 * 1000) // Max 7 days
@@ -53,6 +62,9 @@ function createSession(type, payload, expiresInMinutes = null, passphraseHash = 
     expiresAt: Date.now() + expiryMs,
     payload,
     passphraseHash,
+    openOnce: normalizeBoolean(openOnce),
+    passphraseAttempts: 0,
+    opened: false,
   };
   sessions.set(id, session);
   return session;
@@ -80,7 +92,7 @@ function cleanupExpiredSessions() {
 setInterval(cleanupExpiredSessions, 5 * 60 * 1000);
 
 app.post('/api/session/file', (req, res) => {
-  const { files, expiresInMinutes, passphrase } = req.body || {};
+  const { files, expiresInMinutes, passphrase, openOnce } = req.body || {};
 
   if (!Array.isArray(files) || files.length === 0) {
     return res.status(400).json({ error: 'Invalid request payload. Expected files array.' });
@@ -124,9 +136,12 @@ app.post('/api/session/file', (req, res) => {
       });
     }
 
-    const session = createSession('file', {
-      files: processedFiles,
-    }, expiryMinutes, passphraseHash);
+    const session = createSession(
+      'file',
+      { files: processedFiles },
+      expiryMinutes,
+      { passphraseHash, openOnce }
+    );
 
     const expiresInSeconds = expiryMinutes ? expiryMinutes * 60 : 3600;
 
@@ -143,7 +158,7 @@ app.post('/api/session/file', (req, res) => {
 });
 
 app.post('/api/session/text', (req, res) => {
-  const { text, expiresInMinutes, passphrase } = req.body || {};
+  const { text, expiresInMinutes, passphrase, openOnce } = req.body || {};
 
   if (typeof text !== 'string' || !text.trim()) {
     return res.status(400).json({ error: 'Text content is required.' });
@@ -164,10 +179,12 @@ app.post('/api/session/text', (req, res) => {
     ? hashPassphrase(passphrase.trim())
     : null;
 
-  const session = createSession('text', {
-    text,
-    length: text.length,
-  }, expiryMinutes, passphraseHash);
+  const session = createSession(
+    'text',
+    { text, length: text.length },
+    expiryMinutes,
+    { passphraseHash, openOnce }
+  );
 
   const expiresInSeconds = expiryMinutes ? expiryMinutes * 60 : 3600;
 
@@ -202,6 +219,7 @@ app.get('/api/session/:id', (req, res) => {
         id: session.id,
         type: session.type,
         requiresPassphrase,
+        openOnce: session.openOnce,
         files: session.payload.files.map((f) => ({
           name: f.name,
           mimeType: f.mimeType,
@@ -215,6 +233,7 @@ app.get('/api/session/:id', (req, res) => {
         id: session.id,
         type: session.type,
         requiresPassphrase,
+        openOnce: session.openOnce,
         file: {
           name: session.payload.name,
           mimeType: session.payload.mimeType,
@@ -230,6 +249,7 @@ app.get('/api/session/:id', (req, res) => {
       id: session.id,
       type: session.type,
       requiresPassphrase,
+      openOnce: session.openOnce,
       createdAt: session.createdAt,
     });
   }
@@ -267,10 +287,29 @@ wss.on('connection', (socket, req) => {
 
   // Verify passphrase if required
   if (session.passphraseHash) {
-    if (!providedPassphrase || !verifyPassphrase(providedPassphrase, session.passphraseHash)) {
+    if (!providedPassphrase) {
       socket.send(JSON.stringify({ event: 'passphraseRequired', message: 'Passphrase is required to access this content.' }));
       return socket.close();
     }
+
+    if (!verifyPassphrase(providedPassphrase, session.passphraseHash)) {
+      session.passphraseAttempts += 1;
+      if (session.passphraseAttempts >= MAX_PASSPHRASE_ATTEMPTS) {
+        sessions.delete(sessionId);
+        socket.send(JSON.stringify({ event: 'passphraseLocked', message: 'Too many incorrect passphrase attempts.' }));
+      } else {
+        socket.send(JSON.stringify({ event: 'passphraseRequired', message: 'Incorrect passphrase.' }));
+      }
+      return socket.close();
+    }
+  }
+
+  if (session.openOnce) {
+    if (session.opened) {
+      socket.send(JSON.stringify({ event: 'sessionUsed', message: 'This session has already been accessed.' }));
+      return socket.close();
+    }
+    session.opened = true;
   }
 
   const basePayload = {
@@ -279,6 +318,14 @@ wss.on('connection', (socket, req) => {
     sessionType: session.type,
     createdAt: session.createdAt,
   };
+
+  const cleanupSession = () => {
+    if (session.openOnce) {
+      sessions.delete(sessionId);
+    }
+  };
+
+  socket.on('close', cleanupSession);
 
   if (session.type === 'file') {
     if (session.payload.files && Array.isArray(session.payload.files)) {

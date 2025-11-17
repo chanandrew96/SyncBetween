@@ -216,6 +216,9 @@ async function initSharePage() {
     fileChunks.clear();
     filesList.innerHTML = '';
     latestText = '';
+    if (sharedTextElement) {
+      sharedTextElement.textContent = '';
+    }
     fileObjectUrls.forEach((url) => {
       URL.revokeObjectURL(url);
     });
@@ -402,6 +405,23 @@ async function initSharePage() {
             passphraseInput.focus();
           }
           statusElement.textContent = i18n.t('passphraseRequired');
+        } else if (data.event === 'passphraseLocked') {
+          showError(i18n.t('passphraseLocked'), statusElement, errorElement);
+          if (passphrasePrompt) {
+            passphrasePrompt.hidden = false;
+            detailsElement.hidden = true;
+            passphraseError.textContent = i18n.t('passphraseLocked');
+            passphraseError.hidden = false;
+            passphraseInput.disabled = true;
+            if (passphraseForm) {
+              const submitBtn = passphraseForm.querySelector('button[type="submit"]');
+              if (submitBtn) {
+                submitBtn.disabled = true;
+              }
+            }
+          }
+        } else if (data.event === 'sessionUsed') {
+          showError(i18n.t('sessionAlreadyOpened'), statusElement, errorElement);
         } else if (data.event === 'error') {
           throw new Error(data.message || 'An unexpected error occurred.');
         }

@@ -96,6 +96,10 @@ const i18n = {
       submitPassphrase: 'Submit',
       passphraseEmpty: 'Please enter a passphrase.',
       passphraseIncorrect: 'Incorrect passphrase. Please try again.',
+      passphraseLocked: 'Too many incorrect attempts (max 5). This session is no longer available.',
+      openOnceLabel: 'Open once only (auto-delete after first successful access)',
+      openOnceHint: 'The session will be deleted after the recipient closes the transfer.',
+      sessionAlreadyOpened: 'This share link has already been opened and is no longer available.',
     },
     'zh-TW': {
       // Header
@@ -192,6 +196,10 @@ const i18n = {
       submitPassphrase: '提交',
       passphraseEmpty: '請輸入密碼短語。',
       passphraseIncorrect: '密碼短語錯誤。請重試。',
+      passphraseLocked: '錯誤次數過多（最多 5 次），此分享已被鎖定或刪除。',
+      openOnceLabel: '僅限開啟一次（首次傳輸完成後自動刪除）',
+      openOnceHint: '接收者關閉傳輸後，此 Session 會被自動刪除。',
+      sessionAlreadyOpened: '此分享連結已被使用，無法再次存取。',
     },
     'zh-CN': {
       // Header
@@ -279,6 +287,19 @@ const i18n = {
       copyToClipboard: '是否要将文本内容复制到剪贴板？',
       copiedToClipboard: '文本已复制到剪贴板。',
       unableToCopyManual: '无法自动复制，请使用下方按钮手动复制。',
+      
+      // Passphrase
+      passphraseLabel: '密码短语（选填）：',
+      passphrasePlaceholder: '输入密码短语以保护分享的数据',
+      passphraseHint: '接收者需要输入此密码短语才能访问分享的内容。',
+      passphraseRequired: '此分享内容受密码短语保护。请输入密码短语以继续：',
+      submitPassphrase: '提交',
+      passphraseEmpty: '请输入密码短语。',
+      passphraseIncorrect: '密码短语错误。请重试。',
+      passphraseLocked: '错误次数过多（最多 5 次），此分享已被锁定或删除。',
+      openOnceLabel: '仅限打开一次（首次传输完成后自动删除）',
+      openOnceHint: '接收者关闭传输后，此 Session 会被自动删除。',
+      sessionAlreadyOpened: '此分享链接已被使用，无法再次访问。',
     },
   },
   

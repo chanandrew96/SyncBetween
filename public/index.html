@@ -66,6 +66,13 @@
             <input type="password" id="file-passphrase" data-i18n-placeholder="passphrasePlaceholder" placeholder="Enter passphrase to protect shared data" />
             <p class="hint" data-i18n="passphraseHint">Recipients will need to enter this passphrase to access the shared content.</p>
           </div>
+          <div class="open-once-section">
+            <label class="checkbox-label">
+              <input type="checkbox" id="file-open-once" />
+              <span data-i18n="openOnceLabel">Open once only (auto-delete after first successful access)</span>
+            </label>
+            <p class="hint" data-i18n="openOnceHint">The session will be deleted after the recipient closes the transfer.</p>
+          </div>
           <button type="submit" id="file-submit" disabled data-i18n="generateShareLink">Generate Share Link</button>
         </form>
         <div class="share-result" id="file-share-result" hidden>
@@ -107,6 +114,13 @@
             <label for="text-passphrase" data-i18n="passphraseLabel">Passphrase (optional):</label>
             <input type="password" id="text-passphrase" data-i18n-placeholder="passphrasePlaceholder" placeholder="Enter passphrase to protect shared data" />
             <p class="hint" data-i18n="passphraseHint">Recipients will need to enter this passphrase to access the shared content.</p>
+          </div>
+          <div class="open-once-section">
+            <label class="checkbox-label">
+              <input type="checkbox" id="text-open-once" />
+              <span data-i18n="openOnceLabel">Open once only (auto-delete after first successful access)</span>
+            </label>
+            <p class="hint" data-i18n="openOnceHint">The session will be deleted after the recipient closes the transfer.</p>
           </div>
           <button type="submit" id="text-submit" disabled data-i18n="generateShareLink">Generate Share Link</button>
         </form>

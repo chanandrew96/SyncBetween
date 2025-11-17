@@ -400,6 +400,23 @@ textarea {
   font-weight: 500;
 }
 
+.open-once-section {
+  margin-top: 0.75rem;
+}
+
+.checkbox-label {
+  display: flex;
+  align-items: flex-start;
+  gap: 0.5rem;
+  font-size: 0.95rem;
+  font-weight: 500;
+  color: #202124;
+}
+
+.checkbox-label input[type="checkbox"] {
+  margin-top: 0.25rem;
+}
+
 .expiry-input-group {
   display: flex;
   gap: 0.5rem;
@@ -508,6 +525,10 @@ textarea {
 
   .error-message {
     color: #f28b82;
+  }
+
+  .checkbox-label {
+    color: #e8eaed;
   }
 }
 
