@@ -1,6 +1,7 @@
 # SyncBetween
 [![Render](https://img.shields.io/badge/Render-Deployed-brightgreen?logo=render)](https://syncbetween.onrender.com/)
-[![Render Status](https://img.shields.io/badge/dynamic/json?logo=render&color=brightgreen&label=Render&url=https%3A%2F%2Frender-deploy-status-latest-467p.onrender.com%2Fsrv-d4aq7jvpm1nc739cv870&query=status)](https://syncbetween.onrender.com/)
+[![Render Status](https://img.shields.io/badge/dynamic/json?url=https%3A%2F%2Frender-deploy-status-latest-467p.onrender.com%2Fsrv-d4aq7jvpm1nc739cv870&query=%24.status&logo=render&label=Render
+)](https://syncbetween.onrender.com/)
 
 A web application that helps users share data (images, videos, and text) between different devices using WebSocket connections and QR codes.
 
