@@ -146,6 +146,127 @@ textarea {
   color: #5f6368;
 }
 
+.file-list {
+  margin-top: 1rem;
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+}
+
+.file-item {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 0.5rem;
+  background: rgba(26, 115, 232, 0.05);
+  border-radius: 6px;
+  font-size: 0.9rem;
+}
+
+.file-item-name {
+  flex: 1;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.file-item-size {
+  color: #5f6368;
+  margin-left: 0.5rem;
+}
+
+.files-list {
+  display: flex;
+  flex-direction: column;
+  gap: 1rem;
+  margin-top: 1rem;
+}
+
+.file-item-container {
+  border: 1px solid #e8eaed;
+  border-radius: 8px;
+  padding: 1rem;
+  background: #ffffff;
+}
+
+.file-info {
+  margin-bottom: 0.75rem;
+}
+
+.file-name {
+  font-weight: 600;
+  margin-bottom: 0.25rem;
+  word-break: break-word;
+}
+
+.file-meta {
+  font-size: 0.85rem;
+  color: #5f6368;
+}
+
+.file-preview {
+  width: 100%;
+  max-width: 100%;
+  max-height: 400px;
+  object-fit: contain;
+  border-radius: 6px;
+  margin-bottom: 0.75rem;
+  background: #f5f5f5;
+}
+
+.download-file-btn {
+  width: auto;
+  min-width: 120px;
+  margin-top: 0;
+}
+
+.file-progress {
+  font-size: 0.85rem;
+  color: #1a73e8;
+  margin-bottom: 0.5rem;
+  font-weight: 500;
+}
+
+.expiry-section {
+  margin-top: 1rem;
+  margin-bottom: 0.5rem;
+}
+
+.expiry-section label {
+  display: block;
+  margin-bottom: 0.5rem;
+  font-size: 0.9rem;
+  font-weight: 500;
+  color: #5f6368;
+}
+
+.expiry-input-group {
+  display: flex;
+  gap: 0.5rem;
+  align-items: center;
+}
+
+.expiry-input-group select,
+.expiry-input-group input[type="number"] {
+  flex: 1;
+  padding: 0.5rem;
+  border-radius: 6px;
+  border: 1px solid #dadce0;
+  font-size: 0.9rem;
+  box-sizing: border-box;
+}
+
+.expiry-input-group input[type="number"] {
+  max-width: 150px;
+}
+
+#file-expiry-info,
+#text-expiry-info {
+  margin-top: 0.5rem;
+  color: #34a853;
+  font-weight: 500;
+}
+
 @media (prefers-color-scheme: dark) {
   :root {
     background-color: #202124;
@@ -174,6 +295,19 @@ textarea {
   #text-view pre {
     background: rgba(138, 180, 248, 0.12);
     border: 1px solid rgba(138, 180, 248, 0.25);
+  }
+
+  .file-item-container {
+    background: #2d2f31;
+    border-color: #3c4043;
+  }
+
+  .file-item {
+    background: rgba(138, 180, 248, 0.08);
+  }
+
+  .file-preview {
+    background: #202124;
   }
 }
 

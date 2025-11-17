@@ -171,12 +171,67 @@ SyncBetween/
 - `GET /share/:id` - Share page for receiving content
 - `WS /ws?sessionId=:id` - WebSocket connection for data transfer
 
+## 應用程式運作方式 (How the Application Works)
+
+### 整體架構
+
+SyncBetween 是一個基於 WebSocket 的即時檔案與文字分享應用程式，採用客戶端-伺服器架構，透過 WebSocket 實現即時資料傳輸。
+
+### 工作流程
+
+#### 1. **檔案分享流程**
+
+**發送端（主頁面）：**
+1. 使用者選擇一個或多個檔案（支援任何檔案類型）
+2. 前端將檔案讀取為 Base64 編碼格式
+3. 透過 HTTP POST 請求將檔案資料傳送到伺服器 (`/api/session/file`)
+4. 伺服器建立一個唯一的 Session ID，並將檔案資料暫存在記憶體中
+5. 伺服器回傳分享連結和 WebSocket URL
+6. 前端顯示分享連結和 QR Code
+
+**接收端（分享頁面）：**
+1. 使用者透過分享連結或掃描 QR Code 開啟接收頁面
+2. 頁面自動建立 WebSocket 連線到伺服器
+3. 伺服器透過 WebSocket 串流傳輸檔案資料（以 64KB 為單位分塊傳輸）
+4. 前端接收資料塊並顯示傳輸進度
+5. 所有資料塊接收完成後，前端將資料重組為完整檔案
+6. 使用者可以預覽（圖片/影片）或下載檔案
+
+#### 2. **文字分享流程**
+
+**發送端：**
+1. 使用者輸入或貼上文字內容
+2. 透過 HTTP POST 請求將文字傳送到伺服器 (`/api/session/text`)
+3. 伺服器建立 Session 並暫存文字內容
+4. 回傳分享連結和 QR Code
+
+**接收端：**
+1. 開啟分享連結後建立 WebSocket 連線
+2. 伺服器透過 WebSocket 傳送文字內容
+3. 前端顯示文字並提示使用者是否要複製到剪貼簿
+
+### 技術特點
+
+- **串流傳輸（Streaming）**：大檔案以 64KB 為單位分塊傳輸，避免記憶體溢出並提升傳輸效率
+- **即時通訊**：使用 WebSocket 實現即時雙向通訊，無需輪詢
+- **無檔案大小限制**：透過串流技術支援任意大小的檔案
+- **多檔案支援**：單一分享連結可包含多個檔案
+- **進度顯示**：接收端即時顯示檔案傳輸進度
+
+### 資料儲存與清理
+
+- 所有資料（檔案和文字）暫存在伺服器記憶體中
+- **Session 過期時間**：每個 Session 在建立後 1 小時自動過期
+- **自動清理機制**：伺服器每 5 分鐘自動檢查並刪除過期的 Session
+- Session 資料在伺服器重啟後會遺失
+- 當 Session 過期後，分享連結將無法再存取資料
+
 ## Limitations
 
-- Maximum file size: 50 MB
-- Sessions expire after 1 hour (not yet implemented, but recommended)
+- **Sessions expire after 1 hour** - Data is automatically removed 1 hour after creation
 - Data is stored in memory (not persistent across server restarts)
 - No authentication (anyone with the link can access)
+- No file size limit (removed for better performance with streaming)
 
 ## Security Notes
 
@@ -185,7 +240,7 @@ SyncBetween/
   - Authentication/authorization
   - Rate limiting
   - File type validation
-  - Session expiration cleanup
+  - Session expiration cleanup (already implemented)
   - HTTPS/WSS encryption
 
 ## License

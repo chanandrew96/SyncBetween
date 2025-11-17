@@ -6,21 +6,67 @@ document.addEventListener('DOMContentLoaded', () => {
 function setupFileSharing() {
   const fileInput = document.querySelector('#file-input');
   const fileLabel = document.querySelector('#file-label');
+  const fileList = document.querySelector('#file-list');
   const fileForm = document.querySelector('#file-share-form');
   const submitButton = document.querySelector('#file-submit');
   const resultSection = document.querySelector('#file-share-result');
   const shareLink = document.querySelector('#file-share-link');
   const qrCanvas = document.querySelector('#file-qr');
+  const expiryPreset = document.querySelector('#file-expiry-preset');
+  const expiryCustom = document.querySelector('#file-expiry-custom');
+  const expiryInfo = document.querySelector('#file-expiry-info');
 
   let isSubmitting = false;
 
+  // Handle expiry time selection
+  expiryPreset.addEventListener('change', () => {
+    if (expiryPreset.value === 'custom') {
+      expiryCustom.hidden = false;
+      expiryCustom.focus();
+    } else {
+      expiryCustom.hidden = true;
+      expiryCustom.value = '';
+    }
+  });
+
+  function getExpiryMinutes() {
+    if (expiryPreset.value === 'custom') {
+      const customValue = parseInt(expiryCustom.value, 10);
+      if (customValue && customValue >= 1 && customValue <= 10080) {
+        return customValue;
+      }
+      return 60; // Default to 1 hour if invalid
+    }
+    return parseInt(expiryPreset.value, 10);
+  }
+
   fileInput.addEventListener('change', () => {
-    if (fileInput.files.length > 0) {
-      const file = fileInput.files[0];
-      fileLabel.textContent = `${file.name} (${formatBytes(file.size)})`;
+    const files = Array.from(fileInput.files);
+    if (files.length > 0) {
+      const totalSize = files.reduce((sum, file) => sum + file.size, 0);
+      if (files.length === 1) {
+        fileLabel.textContent = `${files[0].name} (${formatBytes(files[0].size)})`;
+      } else {
+        fileLabel.textContent = `${files.length} files selected (${formatBytes(totalSize)} total)`;
+      }
+      
+      // Display file list
+      fileList.innerHTML = '';
+      files.forEach((file, index) => {
+        const fileItem = document.createElement('div');
+        fileItem.className = 'file-item';
+        fileItem.innerHTML = `
+          <span class="file-item-name">${file.name}</span>
+          <span class="file-item-size">${formatBytes(file.size)}</span>
+        `;
+        fileList.appendChild(fileItem);
+      });
+      fileList.hidden = false;
       submitButton.disabled = false;
     } else {
-      fileLabel.textContent = 'Choose image or video';
+      fileLabel.textContent = 'Choose files';
+      fileList.hidden = true;
+      fileList.innerHTML = '';
       submitButton.disabled = true;
     }
   });
@@ -29,26 +75,32 @@ function setupFileSharing() {
     event.preventDefault();
     if (isSubmitting || fileInput.files.length === 0) return;
 
-    const file = fileInput.files[0];
-    if (!file.type.startsWith('image/') && !file.type.startsWith('video/')) {
-      showToast('Please select an image or video file.');
-      return;
-    }
-
+    const files = Array.from(fileInput.files);
     isSubmitting = true;
     submitButton.disabled = true;
     submitButton.textContent = 'Preparing...';
 
     try {
-      const base64 = await fileToBase64(file);
+      // Process all files
+      const fileData = await Promise.all(
+        files.map(async (file) => {
+          const base64 = await fileToBase64(file);
+          return {
+            name: file.name,
+            mimeType: file.type || 'application/octet-stream',
+            dataBase64: base64,
+            size: file.size,
+          };
+        })
+      );
+
+      const expiryMinutes = getExpiryMinutes();
       const response = await fetch('/api/session/file', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          name: file.name,
-          mimeType: file.type,
-          dataBase64: base64,
-          size: file.size,
+        body: JSON.stringify({ 
+          files: fileData,
+          expiresInMinutes: expiryMinutes,
         }),
       });
 
@@ -61,6 +113,18 @@ function setupFileSharing() {
       shareLink.textContent = result.shareUrl;
       shareLink.href = result.shareUrl;
       drawQr(qrCanvas, result.shareUrl);
+      
+      // Display expiry information
+      if (result.expiresInSeconds) {
+        const hours = Math.floor(result.expiresInSeconds / 3600);
+        const minutes = Math.floor((result.expiresInSeconds % 3600) / 60);
+        if (hours > 0) {
+          expiryInfo.textContent = `This link will expire in ${hours} hour${hours > 1 ? 's' : ''} and ${minutes} minute${minutes !== 1 ? 's' : ''}.`;
+        } else {
+          expiryInfo.textContent = `This link will expire in ${minutes} minute${minutes !== 1 ? 's' : ''}.`;
+        }
+      }
+      
       resultSection.hidden = false;
     } catch (error) {
       console.error(error);
@@ -80,8 +144,33 @@ function setupTextSharing() {
   const resultSection = document.querySelector('#text-share-result');
   const shareLink = document.querySelector('#text-share-link');
   const qrCanvas = document.querySelector('#text-qr');
+  const expiryPreset = document.querySelector('#text-expiry-preset');
+  const expiryCustom = document.querySelector('#text-expiry-custom');
+  const expiryInfo = document.querySelector('#text-expiry-info');
 
   let isSubmitting = false;
+
+  // Handle expiry time selection
+  expiryPreset.addEventListener('change', () => {
+    if (expiryPreset.value === 'custom') {
+      expiryCustom.hidden = false;
+      expiryCustom.focus();
+    } else {
+      expiryCustom.hidden = true;
+      expiryCustom.value = '';
+    }
+  });
+
+  function getExpiryMinutes() {
+    if (expiryPreset.value === 'custom') {
+      const customValue = parseInt(expiryCustom.value, 10);
+      if (customValue && customValue >= 1 && customValue <= 10080) {
+        return customValue;
+      }
+      return 60; // Default to 1 hour if invalid
+    }
+    return parseInt(expiryPreset.value, 10);
+  }
 
   textArea.addEventListener('input', () => {
     submitButton.disabled = textArea.value.trim().length === 0 || isSubmitting;
@@ -102,10 +191,14 @@ function setupTextSharing() {
     submitButton.textContent = 'Preparing...';
 
     try {
+      const expiryMinutes = getExpiryMinutes();
       const response = await fetch('/api/session/text', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ text }),
+        body: JSON.stringify({ 
+          text,
+          expiresInMinutes: expiryMinutes,
+        }),
       });
 
       if (!response.ok) {
@@ -117,6 +210,18 @@ function setupTextSharing() {
       shareLink.textContent = result.shareUrl;
       shareLink.href = result.shareUrl;
       drawQr(qrCanvas, result.shareUrl);
+      
+      // Display expiry information
+      if (result.expiresInSeconds) {
+        const hours = Math.floor(result.expiresInSeconds / 3600);
+        const minutes = Math.floor((result.expiresInSeconds % 3600) / 60);
+        if (hours > 0) {
+          expiryInfo.textContent = `This link will expire in ${hours} hour${hours > 1 ? 's' : ''} and ${minutes} minute${minutes !== 1 ? 's' : ''}.`;
+        } else {
+          expiryInfo.textContent = `This link will expire in ${minutes} minute${minutes !== 1 ? 's' : ''}.`;
+        }
+      }
+      
       resultSection.hidden = false;
     } catch (error) {
       console.error(error);

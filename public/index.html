@@ -16,13 +16,30 @@
 
     <main class="app-main">
       <section class="card">
-        <h2>Share File</h2>
-        <p>Select an image or video to create a share link.</p>
+        <h2>Share Files</h2>
+        <p>Select one or more files (any type) to create a share link.</p>
         <form id="file-share-form">
           <label class="file-input">
-            <input type="file" id="file-input" accept="image/*,video/*" />
-            <span id="file-label">Choose image or video</span>
+            <input type="file" id="file-input" multiple />
+            <span id="file-label">Choose files</span>
           </label>
+          <div id="file-list" class="file-list"></div>
+          <div class="expiry-section">
+            <label for="file-expiry">Session expiry time:</label>
+            <div class="expiry-input-group">
+              <select id="file-expiry-preset">
+                <option value="15">15 minutes</option>
+                <option value="30">30 minutes</option>
+                <option value="60" selected>1 hour</option>
+                <option value="120">2 hours</option>
+                <option value="240">4 hours</option>
+                <option value="480">8 hours</option>
+                <option value="1440">24 hours</option>
+                <option value="custom">Custom (minutes)</option>
+              </select>
+              <input type="number" id="file-expiry-custom" min="1" max="10080" placeholder="Minutes" hidden />
+            </div>
+          </div>
           <button type="submit" id="file-submit" disabled>Generate Share Link</button>
         </form>
         <div class="share-result" id="file-share-result" hidden>
@@ -34,7 +51,8 @@
           <div class="qr-wrapper">
             <canvas id="file-qr"></canvas>
           </div>
-          <p class="hint">Open the link or scan the QR code from another device to download.</p>
+          <p class="hint">Open the link or scan the QR code from another device to download the files.</p>
+          <p class="hint" id="file-expiry-info"></p>
         </div>
       </section>
 
@@ -43,6 +61,22 @@
         <p>Paste any text to share with another device.</p>
         <form id="text-share-form">
           <textarea id="text-input" placeholder="Enter your text here..." rows="6"></textarea>
+          <div class="expiry-section">
+            <label for="text-expiry">Session expiry time:</label>
+            <div class="expiry-input-group">
+              <select id="text-expiry-preset">
+                <option value="15">15 minutes</option>
+                <option value="30">30 minutes</option>
+                <option value="60" selected>1 hour</option>
+                <option value="120">2 hours</option>
+                <option value="240">4 hours</option>
+                <option value="480">8 hours</option>
+                <option value="1440">24 hours</option>
+                <option value="custom">Custom (minutes)</option>
+              </select>
+              <input type="number" id="text-expiry-custom" min="1" max="10080" placeholder="Minutes" hidden />
+            </div>
+          </div>
           <button type="submit" id="text-submit" disabled>Generate Share Link</button>
         </form>
         <div class="share-result" id="text-share-result" hidden>
@@ -55,6 +89,7 @@
             <canvas id="text-qr"></canvas>
           </div>
           <p class="hint">The recipient will be prompted to copy the text content.</p>
+          <p class="hint" id="text-expiry-info"></p>
         </div>
       </section>
     </main>
