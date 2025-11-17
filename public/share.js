@@ -1,4 +1,47 @@
-document.addEventListener('DOMContentLoaded', initSharePage);
+// i18n helper functions for share page
+function updateI18nElementsShare() {
+  document.querySelectorAll('[data-i18n]').forEach((el) => {
+    const key = el.getAttribute('data-i18n');
+    if (key) {
+      el.textContent = i18n.t(key);
+    }
+  });
+}
+
+function setupLanguageSwitcherShare() {
+  const langBtn = document.getElementById('lang-btn');
+  const langMenu = document.getElementById('lang-menu');
+  
+  if (!langBtn || !langMenu) return;
+  
+  langBtn.addEventListener('click', (e) => {
+    e.stopPropagation();
+    langMenu.hidden = !langMenu.hidden;
+  });
+  
+  document.querySelectorAll('.lang-option').forEach((btn) => {
+    btn.addEventListener('click', (e) => {
+      e.stopPropagation();
+      const lang = btn.getAttribute('data-lang');
+      if (i18n.setLang(lang)) {
+        updateI18nElementsShare();
+        updateSharePageText();
+        langMenu.hidden = true;
+      }
+    });
+  });
+  
+  // Close menu when clicking outside
+  document.addEventListener('click', () => {
+    langMenu.hidden = true;
+  });
+}
+
+document.addEventListener('DOMContentLoaded', () => {
+  setupLanguageSwitcherShare();
+  updateI18nElementsShare();
+  initSharePage();
+});
 
 async function initSharePage() {
   const sessionId = getSessionIdFromPath();
@@ -13,44 +56,80 @@ async function initSharePage() {
   const filesList = document.getElementById('files-list');
 
   if (!sessionId) {
-    showError('Invalid share link. Please check the URL.', statusElement, errorElement);
+    showError(i18n.t('invalidShareLink'), statusElement, errorElement);
     return;
   }
 
   const fileObjectUrls = new Map();
   const fileChunks = new Map(); // Store chunks for each file
   let latestText = '';
+  let socket = null;
+  const passphrasePrompt = document.getElementById('passphrase-prompt');
+  const passphraseForm = document.getElementById('passphrase-form');
+  const passphraseInput = document.getElementById('passphrase-input');
+  const passphraseError = document.getElementById('passphrase-error');
 
   try {
-    statusElement.textContent = 'Preparing your content...';
+    statusElement.textContent = i18n.t('preparingContent');
     const metaResponse = await fetch(`/api/session/${sessionId}`);
 
     if (!metaResponse.ok) {
-      throw new Error(metaResponse.status === 404 ? 'This share link is no longer available.' : 'Unable to load shared content.');
+      throw new Error(metaResponse.status === 404 ? i18n.t('sessionNotFound') : i18n.t('unableToLoad'));
     }
 
     const metadata = await metaResponse.json();
-    detailsElement.hidden = false;
 
-    if (metadata.type === 'file') {
-      statusElement.textContent = 'Waiting for file data...';
-      fileView.hidden = false;
-      
-      if (metadata.files && Array.isArray(metadata.files)) {
-        // Multiple files
-        const count = metadata.files.length;
-        fileCountMessage.textContent = count === 1 
-          ? 'You are receiving 1 file:' 
-          : `You are receiving ${count} files:`;
-      } else if (metadata.file) {
-        // Legacy single file format
-        fileCountMessage.textContent = 'You are receiving 1 file:';
+    const applySessionMetadata = () => {
+      if (metadata.type === 'file') {
+        statusElement.textContent = i18n.t('waitingFileData');
+        fileView.hidden = false;
+        textView.hidden = true;
+
+        if (metadata.files && Array.isArray(metadata.files)) {
+          const count = metadata.files.length;
+          const fileText = count === 1 ? i18n.t('file') : i18n.t('files');
+          fileCountMessage.textContent = `${i18n.t('youAreReceiving')} ${count} ${fileText}:`;
+        } else if (metadata.file) {
+          fileCountMessage.textContent = `${i18n.t('youAreReceiving')} 1 ${i18n.t('file')}:`;
+        }
+      } else if (metadata.type === 'text') {
+        statusElement.textContent = i18n.t('waitingTextContent');
+        textView.hidden = false;
+        fileView.hidden = true;
+      } else {
+        throw new Error(i18n.t('unsupportedContentType'));
       }
-    } else if (metadata.type === 'text') {
-      statusElement.textContent = 'Waiting for text content...';
-      textView.hidden = false;
+    };
+
+    applySessionMetadata();
+
+    let passphraseHandlerAttached = false;
+
+    if (metadata.requiresPassphrase) {
+      passphrasePrompt.hidden = false;
+      detailsElement.hidden = true;
+      statusElement.textContent = i18n.t('passphraseRequired');
+
+      const handlePassphraseSubmit = async (e) => {
+        e.preventDefault();
+        const passphrase = passphraseInput.value.trim();
+
+        if (!passphrase) {
+          passphraseError.textContent = i18n.t('passphraseEmpty');
+          passphraseError.hidden = false;
+          return;
+        }
+
+        passphraseError.hidden = true;
+        statusElement.textContent = i18n.t('connecting');
+
+        connectWebSocket(passphrase);
+      };
+
+      passphraseForm.addEventListener('submit', handlePassphraseSubmit);
     } else {
-      throw new Error('Unsupported content type.');
+      detailsElement.hidden = false;
+      connectWebSocket();
     }
   } catch (error) {
     console.error(error);
@@ -62,10 +141,10 @@ async function initSharePage() {
     if (!latestText) return;
     try {
       await navigator.clipboard.writeText(latestText);
-      alert('Text copied to clipboard.');
+      alert(i18n.t('textCopied'));
     } catch (err) {
       console.error(err);
-      alert('Unable to copy text automatically. Please copy it manually.');
+      alert(i18n.t('unableToCopy'));
     }
   });
 
@@ -112,7 +191,7 @@ async function initSharePage() {
     
     const downloadBtn = document.createElement('button');
     downloadBtn.className = 'download-file-btn';
-    downloadBtn.textContent = 'Download';
+    downloadBtn.textContent = i18n.t('download');
     downloadBtn.disabled = true; // Disabled until file is ready
     downloadBtn.dataset.fileIndex = index;
     
@@ -125,172 +204,227 @@ async function initSharePage() {
     return { container: fileItem, preview: previewElement };
   }
 
-  const wsProtocol = window.location.protocol === 'https:' ? 'wss' : 'ws';
-  const wsUrl = `${wsProtocol}://${window.location.host}/ws?sessionId=${encodeURIComponent(sessionId)}`;
-  const socket = new WebSocket(wsUrl);
+  function connectWebSocket(passphrase = null) {
+    const wsProtocol = window.location.protocol === 'https:' ? 'wss' : 'ws';
+    let wsUrl = `${wsProtocol}://${window.location.host}/ws?sessionId=${encodeURIComponent(sessionId)}`;
+    
+    if (passphrase) {
+      wsUrl += `&passphrase=${encodeURIComponent(passphrase)}`;
+    }
 
-  socket.addEventListener('open', () => {
-    statusElement.textContent = 'Connected. Receiving data...';
-  });
+    // Reset previous transfer state
+    fileChunks.clear();
+    filesList.innerHTML = '';
+    latestText = '';
+    fileObjectUrls.forEach((url) => {
+      URL.revokeObjectURL(url);
+    });
+    fileObjectUrls.clear();
+    
+    if (socket) {
+      socket.close();
+    }
+    
+    socket = new WebSocket(wsUrl);
+    setupWebSocketHandlers();
+  }
 
-  socket.addEventListener('message', async (event) => {
-    try {
-      const data = JSON.parse(event.data);
-      
-      if (data.event === 'session') {
-        if (data.sessionType === 'file') {
-          // Initialize file chunks storage
-          if (data.files && Array.isArray(data.files)) {
-            filesList.innerHTML = '';
-            fileChunks.clear();
-            
-            data.files.forEach((fileData, index) => {
-              fileChunks.set(index, {
-                fileData,
-                chunks: [],
-                receivedChunks: 0,
-                totalChunks: 0,
+  function setupWebSocketHandlers() {
+    socket.addEventListener('open', () => {
+      statusElement.textContent = i18n.t('connectedReceiving');
+      if (passphrasePrompt) {
+        passphrasePrompt.hidden = true;
+        detailsElement.hidden = false;
+      }
+    });
+
+    socket.addEventListener('message', async (event) => {
+      try {
+        const data = JSON.parse(event.data);
+        
+        if (data.event === 'session') {
+          if (data.sessionType === 'file') {
+            // Initialize file chunks storage
+            if (data.files && Array.isArray(data.files)) {
+              filesList.innerHTML = '';
+              fileChunks.clear();
+              
+              data.files.forEach((fileData, index) => {
+                fileChunks.set(index, {
+                  fileData,
+                  chunks: [],
+                  receivedChunks: 0,
+                  totalChunks: 0,
+                  bytesReceived: 0,
+                });
+                
+                // Create placeholder UI
+                const { container, preview } = createFileItem(fileData, index);
+                const progressInfo = document.createElement('div');
+                progressInfo.className = 'file-progress';
+                progressInfo.textContent = i18n.t('receiving');
+                container.insertBefore(progressInfo, container.lastChild);
+                filesList.appendChild(container);
               });
               
-              // Create placeholder UI
-              const { container, preview } = createFileItem(fileData, index);
-              const progressInfo = document.createElement('div');
-              progressInfo.className = 'file-progress';
-              progressInfo.textContent = 'Receiving...';
-              container.insertBefore(progressInfo, container.lastChild);
+              statusElement.textContent = i18n.t('receivingFiles');
+            } else if (data.file) {
+              // Legacy single file format
+              const { name, mimeType, dataBase64 } = data.file;
+              const blob = base64ToBlob(dataBase64, mimeType);
+              
+              const oldUrl = fileObjectUrls.get(0);
+              if (oldUrl) {
+                URL.revokeObjectURL(oldUrl);
+              }
+              
+              const objectUrl = URL.createObjectURL(blob);
+              fileObjectUrls.set(0, objectUrl);
+              
+              filesList.innerHTML = '';
+              const { container, preview } = createFileItem(data.file, 0);
+              
+              if (preview) {
+                preview.src = objectUrl;
+              }
+              
               filesList.appendChild(container);
+              statusElement.textContent = i18n.t('fileReady');
+            }
+          } else if (data.sessionType === 'text' && typeof data.text === 'string') {
+            latestText = data.text;
+            sharedTextElement.textContent = data.text;
+            statusElement.textContent = i18n.t('textReceived');
+
+            if (navigator.clipboard && window.confirm(i18n.t('copyToClipboard'))) {
+              try {
+                await navigator.clipboard.writeText(data.text);
+                alert(i18n.t('copiedToClipboard'));
+              } catch (err) {
+                console.error(err);
+                alert(i18n.t('unableToCopyManual'));
+              }
+            }
+          }
+        } else if (data.event === 'fileChunk') {
+          // Handle streaming file chunks
+          const { fileIndex, chunkIndex, totalChunks, dataBase64 } = data;
+          const fileInfo = fileChunks.get(fileIndex);
+          
+          if (fileInfo) {
+            const chunkBytes = base64ToUint8Array(dataBase64);
+            fileInfo.totalChunks = totalChunks;
+            fileInfo.chunks[chunkIndex] = chunkBytes;
+            fileInfo.receivedChunks++;
+            fileInfo.bytesReceived += chunkBytes.length;
+            
+            // Update progress
+            const container = filesList.children[fileIndex];
+            const progressPercent = fileInfo.fileData.size
+              ? Math.min(100, Math.round((fileInfo.bytesReceived / fileInfo.fileData.size) * 100))
+              : Math.round((fileInfo.receivedChunks / totalChunks) * 100);
+            if (container) {
+              const progressInfo = container.querySelector('.file-progress');
+              if (progressInfo) {
+                progressInfo.textContent = `${i18n.t('receiving')}... ${progressPercent}%`;
+              }
+            }
+            
+            statusElement.textContent = `${i18n.t('receivingFiles')} (${fileInfo.receivedChunks}/${totalChunks} ${i18n.t('chunksForFile')} ${fileIndex + 1})`;
+          }
+        } else if (data.event === 'fileComplete') {
+          // All chunks received, reconstruct files
+          const fileCount = data.fileCount || fileChunks.size;
+          
+          fileChunks.forEach((fileInfo, index) => {
+            // Reconstruct file from binary chunks
+            const totalLength = fileInfo.chunks.reduce((sum, chunk) => {
+              return chunk ? sum + chunk.length : sum;
+            }, 0);
+            const mergedArray = new Uint8Array(totalLength);
+            let offset = 0;
+            fileInfo.chunks.forEach((chunk) => {
+              if (chunk) {
+                mergedArray.set(chunk, offset);
+                offset += chunk.length;
+              }
             });
+            const blob = new Blob([mergedArray], { type: fileInfo.fileData.mimeType });
             
-            statusElement.textContent = 'Receiving files...';
-          } else if (data.file) {
-            // Legacy single file format
-            const { name, mimeType, dataBase64 } = data.file;
-            const blob = base64ToBlob(dataBase64, mimeType);
-            
-            const oldUrl = fileObjectUrls.get(0);
+            // Revoke old URL if exists
+            const oldUrl = fileObjectUrls.get(index);
             if (oldUrl) {
               URL.revokeObjectURL(oldUrl);
             }
             
             const objectUrl = URL.createObjectURL(blob);
-            fileObjectUrls.set(0, objectUrl);
+            fileObjectUrls.set(index, objectUrl);
             
-            filesList.innerHTML = '';
-            const { container, preview } = createFileItem(data.file, 0);
-            
-            if (preview) {
-              preview.src = objectUrl;
+            // Update UI
+            const container = filesList.children[index];
+            if (container) {
+              const progressInfo = container.querySelector('.file-progress');
+              if (progressInfo) {
+                progressInfo.textContent = i18n.t('ready');
+                progressInfo.style.color = '#34a853';
+              }
+              
+              // Update download button
+              const downloadBtn = container.querySelector('.download-file-btn');
+              if (downloadBtn) {
+                downloadBtn.disabled = false;
+                downloadBtn.onclick = () => {
+                  downloadFile(objectUrl, fileInfo.fileData.name);
+                };
+              }
+              
+              // Update preview if exists
+              const preview = container.querySelector('.file-preview');
+              if (preview) {
+                preview.src = objectUrl;
+              }
             }
-            
-            filesList.appendChild(container);
-            statusElement.textContent = 'File ready. Use the button below to download.';
+          });
+          
+          statusElement.textContent = fileCount === 1 
+            ? i18n.t('fileReadyDownload')
+            : i18n.t('filesReadyDownload', { count: fileCount });
+          
+          fileChunks.clear();
+        } else if (data.event === 'passphraseRequired') {
+          // Passphrase is required or incorrect
+          if (passphrasePrompt) {
+            passphrasePrompt.hidden = false;
+            detailsElement.hidden = true;
+            passphraseError.textContent = i18n.t('passphraseIncorrect');
+            passphraseError.hidden = false;
+            passphraseInput.value = '';
+            passphraseInput.focus();
           }
-        } else if (data.sessionType === 'text' && typeof data.text === 'string') {
-          latestText = data.text;
-          sharedTextElement.textContent = data.text;
-          statusElement.textContent = 'Text received.';
-
-          if (navigator.clipboard && window.confirm('是否要將文字內容複製到剪貼簿？')) {
-            try {
-              await navigator.clipboard.writeText(data.text);
-              alert('文字已複製到剪貼簿。');
-            } catch (err) {
-              console.error(err);
-              alert('無法自動複製，請使用下方按鈕手動複製。');
-            }
-          }
+          statusElement.textContent = i18n.t('passphraseRequired');
+        } else if (data.event === 'error') {
+          throw new Error(data.message || 'An unexpected error occurred.');
         }
-      } else if (data.event === 'fileChunk') {
-        // Handle streaming file chunks
-        const { fileIndex, chunkIndex, totalChunks, dataBase64 } = data;
-        const fileInfo = fileChunks.get(fileIndex);
-        
-        if (fileInfo) {
-          fileInfo.totalChunks = totalChunks;
-          fileInfo.chunks[chunkIndex] = dataBase64;
-          fileInfo.receivedChunks++;
-          
-          // Update progress
-          const progress = Math.round((fileInfo.receivedChunks / totalChunks) * 100);
-          const container = filesList.children[fileIndex];
-          if (container) {
-            const progressInfo = container.querySelector('.file-progress');
-            if (progressInfo) {
-              progressInfo.textContent = `Receiving... ${progress}%`;
-            }
-          }
-          
-          statusElement.textContent = `Receiving files... (${fileInfo.receivedChunks}/${totalChunks} chunks for file ${fileIndex + 1})`;
+      } catch (error) {
+        console.error(error);
+        showError(error.message, statusElement, errorElement);
+        if (socket) {
+          socket.close();
         }
-      } else if (data.event === 'fileComplete') {
-        // All chunks received, reconstruct files
-        const fileCount = data.fileCount || fileChunks.size;
-        
-        fileChunks.forEach((fileInfo, index) => {
-          // Reconstruct file from chunks
-          const allChunks = fileInfo.chunks.filter(Boolean);
-          const combinedBase64 = allChunks.join('');
-          const blob = base64ToBlob(combinedBase64, fileInfo.fileData.mimeType);
-          
-          // Revoke old URL if exists
-          const oldUrl = fileObjectUrls.get(index);
-          if (oldUrl) {
-            URL.revokeObjectURL(oldUrl);
-          }
-          
-          const objectUrl = URL.createObjectURL(blob);
-          fileObjectUrls.set(index, objectUrl);
-          
-          // Update UI
-          const container = filesList.children[index];
-          if (container) {
-            const progressInfo = container.querySelector('.file-progress');
-            if (progressInfo) {
-              progressInfo.textContent = 'Ready';
-              progressInfo.style.color = '#34a853';
-            }
-            
-            // Update download button
-            const downloadBtn = container.querySelector('.download-file-btn');
-            if (downloadBtn) {
-              downloadBtn.disabled = false;
-              downloadBtn.onclick = () => {
-                downloadFile(objectUrl, fileInfo.fileData.name);
-              };
-            }
-            
-            // Update preview if exists
-            const preview = container.querySelector('.file-preview');
-            if (preview) {
-              preview.src = objectUrl;
-            }
-          }
-        });
-        
-        statusElement.textContent = fileCount === 1 
-          ? 'File ready. Use the button below to download.' 
-          : `${fileCount} files ready. Use the buttons below to download.`;
-        
-        fileChunks.clear();
-      } else if (data.event === 'error') {
-        throw new Error(data.message || 'An unexpected error occurred.');
       }
-    } catch (error) {
-      console.error(error);
-      showError(error.message, statusElement, errorElement);
-      socket.close();
-    }
-  });
+    });
 
-  socket.addEventListener('error', () => {
-    showError('Connection error. Please try reloading the page.', statusElement, errorElement);
-  });
+    socket.addEventListener('error', () => {
+      showError(i18n.t('connectionError'), statusElement, errorElement);
+    });
 
-  socket.addEventListener('close', () => {
-    if (statusElement.textContent !== 'Connection error. Please try reloading the page.') {
-      statusElement.textContent += ' (Connection closed)';
-    }
-  });
+    socket.addEventListener('close', () => {
+      const errorMsg = i18n.t('connectionError');
+      if (statusElement.textContent !== errorMsg) {
+        statusElement.textContent += ` (${i18n.t('connectionClosed')})`;
+      }
+    });
+  }
 
   window.addEventListener('beforeunload', () => {
     fileObjectUrls.forEach((url) => {
@@ -298,7 +432,9 @@ async function initSharePage() {
     });
     fileObjectUrls.clear();
     fileChunks.clear();
-    socket.close();
+    if (socket) {
+      socket.close();
+    }
   });
 }
 
@@ -311,9 +447,17 @@ function getSessionIdFromPath() {
 }
 
 function showError(message, statusElement, errorElement) {
-  statusElement.textContent = 'Unable to load content';
+  statusElement.textContent = i18n.t('unableToLoadContent');
   errorElement.hidden = false;
   errorElement.textContent = message;
+}
+
+function updateSharePageText() {
+  // Update any dynamic text on share page
+  const statusElement = document.getElementById('session-status');
+  if (statusElement && statusElement.textContent) {
+    // Status text will be updated by WebSocket events
+  }
 }
 
 function base64ToBlob(base64, mimeType) {
@@ -331,6 +475,16 @@ function base64ToBlob(base64, mimeType) {
   }
 
   return new Blob(byteArrays, { type: mimeType });
+}
+
+function base64ToUint8Array(base64) {
+  const binaryString = atob(base64);
+  const len = binaryString.length;
+  const bytes = new Uint8Array(len);
+  for (let i = 0; i < len; i++) {
+    bytes[i] = binaryString.charCodeAt(i);
+  }
+  return bytes;
 }
 
 function formatBytes(bytes) {

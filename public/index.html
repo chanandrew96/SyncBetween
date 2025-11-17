@@ -6,96 +6,127 @@
     <title>SyncBetween</title>
     <link rel="stylesheet" href="styles.css" />
     <script src="https://cdnjs.cloudflare.com/ajax/libs/qrious/4.0.2/qrious.min.js" defer></script>
+    <script src="i18n.js"></script>
     <script src="script.js" defer></script>
   </head>
   <body>
     <header class="app-header">
-      <h1>SyncBetween</h1>
-      <p>Share files or text securely across your devices.</p>
+      <div class="header-content">
+        <div>
+          <h1 data-i18n="appTitle">SyncBetween</h1>
+          <p data-i18n="appSubtitle">Share files or text securely across your devices.</p>
+        </div>
+        <div class="lang-switcher">
+          <button id="lang-btn" class="lang-btn" aria-label="Language">
+            <span id="lang-icon">🌐</span>
+          </button>
+          <div id="lang-menu" class="lang-menu" hidden>
+            <button class="lang-option" data-lang="en">English</button>
+            <button class="lang-option" data-lang="zh-TW">繁體中文</button>
+            <button class="lang-option" data-lang="zh-CN">简体中文</button>
+          </div>
+        </div>
+      </div>
     </header>
 
     <main class="app-main">
+      <section class="card disclaimer-card">
+        <div class="disclaimer-content">
+          <strong class="disclaimer-title" data-i18n="disclaimerTitle">⚠️ Privacy & Security Notice</strong>
+          <p class="disclaimer-text" data-i18n="disclaimerText">This service stores your shared data temporarily in server memory. Please do not share sensitive, confidential, or personal information. Use this service at your own risk. The service provider is not responsible for any data loss or privacy breaches.</p>
+        </div>
+      </section>
       <section class="card">
-        <h2>Share Files</h2>
-        <p>Select one or more files (any type) to create a share link.</p>
+        <h2 data-i18n="shareFiles">Share Files</h2>
+        <p data-i18n="shareFilesDesc">Select one or more files (any type) to create a share link.</p>
         <form id="file-share-form">
           <label class="file-input">
             <input type="file" id="file-input" multiple />
-            <span id="file-label">Choose files</span>
+            <span id="file-label" data-i18n="chooseFiles">Choose files</span>
           </label>
           <div id="file-list" class="file-list"></div>
           <div class="expiry-section">
-            <label for="file-expiry">Session expiry time:</label>
+            <label for="file-expiry" data-i18n="sessionExpiryTime">Session expiry time:</label>
             <div class="expiry-input-group">
               <select id="file-expiry-preset">
-                <option value="15">15 minutes</option>
-                <option value="30">30 minutes</option>
-                <option value="60" selected>1 hour</option>
-                <option value="120">2 hours</option>
-                <option value="240">4 hours</option>
-                <option value="480">8 hours</option>
-                <option value="1440">24 hours</option>
-                <option value="custom">Custom (minutes)</option>
+                <option value="15" data-i18n-option="15 minutes">15 minutes</option>
+                <option value="30" data-i18n-option="30 minutes">30 minutes</option>
+                <option value="60" selected data-i18n-option="1 hour">1 hour</option>
+                <option value="120" data-i18n-option="2 hours">2 hours</option>
+                <option value="240" data-i18n-option="4 hours">4 hours</option>
+                <option value="480" data-i18n-option="8 hours">8 hours</option>
+                <option value="1440" data-i18n-option="24 hours">24 hours</option>
+                <option value="custom" data-i18n-option="customMinutes">Custom (minutes)</option>
               </select>
-              <input type="number" id="file-expiry-custom" min="1" max="10080" placeholder="Minutes" hidden />
+              <input type="number" id="file-expiry-custom" min="1" max="10080" data-i18n-placeholder="minutes" placeholder="Minutes" hidden />
             </div>
           </div>
-          <button type="submit" id="file-submit" disabled>Generate Share Link</button>
+          <div class="passphrase-section">
+            <label for="file-passphrase" data-i18n="passphraseLabel">Passphrase (optional):</label>
+            <input type="password" id="file-passphrase" data-i18n-placeholder="passphrasePlaceholder" placeholder="Enter passphrase to protect shared data" />
+            <p class="hint" data-i18n="passphraseHint">Recipients will need to enter this passphrase to access the shared content.</p>
+          </div>
+          <button type="submit" id="file-submit" disabled data-i18n="generateShareLink">Generate Share Link</button>
         </form>
         <div class="share-result" id="file-share-result" hidden>
-          <h3>Share Ready</h3>
+          <h3 data-i18n="shareReady">Share Ready</h3>
           <p>
-            Share this link with another device:<br />
+            <span data-i18n="shareLinkDesc">Share this link with another device:</span><br />
             <a id="file-share-link" href="#" target="_blank" rel="noopener"></a>
           </p>
           <div class="qr-wrapper">
             <canvas id="file-qr"></canvas>
           </div>
-          <p class="hint">Open the link or scan the QR code from another device to download the files.</p>
+          <p class="hint" data-i18n="openLinkOrScan">Open the link or scan the QR code from another device to download the files.</p>
           <p class="hint" id="file-expiry-info"></p>
         </div>
       </section>
 
       <section class="card">
-        <h2>Share Text</h2>
-        <p>Paste any text to share with another device.</p>
+        <h2 data-i18n="shareText">Share Text</h2>
+        <p data-i18n="shareTextDesc">Paste any text to share with another device.</p>
         <form id="text-share-form">
-          <textarea id="text-input" placeholder="Enter your text here..." rows="6"></textarea>
+          <textarea id="text-input" data-i18n-placeholder="enterTextPlaceholder" placeholder="Enter your text here..." rows="6"></textarea>
           <div class="expiry-section">
-            <label for="text-expiry">Session expiry time:</label>
+            <label for="text-expiry" data-i18n="sessionExpiryTime">Session expiry time:</label>
             <div class="expiry-input-group">
               <select id="text-expiry-preset">
-                <option value="15">15 minutes</option>
-                <option value="30">30 minutes</option>
-                <option value="60" selected>1 hour</option>
-                <option value="120">2 hours</option>
-                <option value="240">4 hours</option>
-                <option value="480">8 hours</option>
-                <option value="1440">24 hours</option>
-                <option value="custom">Custom (minutes)</option>
+                <option value="15" data-i18n-option="15 minutes">15 minutes</option>
+                <option value="30" data-i18n-option="30 minutes">30 minutes</option>
+                <option value="60" selected data-i18n-option="1 hour">1 hour</option>
+                <option value="120" data-i18n-option="2 hours">2 hours</option>
+                <option value="240" data-i18n-option="4 hours">4 hours</option>
+                <option value="480" data-i18n-option="8 hours">8 hours</option>
+                <option value="1440" data-i18n-option="24 hours">24 hours</option>
+                <option value="custom" data-i18n-option="customMinutes">Custom (minutes)</option>
               </select>
-              <input type="number" id="text-expiry-custom" min="1" max="10080" placeholder="Minutes" hidden />
+              <input type="number" id="text-expiry-custom" min="1" max="10080" data-i18n-placeholder="minutes" placeholder="Minutes" hidden />
             </div>
           </div>
-          <button type="submit" id="text-submit" disabled>Generate Share Link</button>
+          <div class="passphrase-section">
+            <label for="text-passphrase" data-i18n="passphraseLabel">Passphrase (optional):</label>
+            <input type="password" id="text-passphrase" data-i18n-placeholder="passphrasePlaceholder" placeholder="Enter passphrase to protect shared data" />
+            <p class="hint" data-i18n="passphraseHint">Recipients will need to enter this passphrase to access the shared content.</p>
+          </div>
+          <button type="submit" id="text-submit" disabled data-i18n="generateShareLink">Generate Share Link</button>
         </form>
         <div class="share-result" id="text-share-result" hidden>
-          <h3>Share Ready</h3>
+          <h3 data-i18n="shareReady">Share Ready</h3>
           <p>
-            Share this link with another device:<br />
+            <span data-i18n="shareLinkDesc">Share this link with another device:</span><br />
             <a id="text-share-link" href="#" target="_blank" rel="noopener"></a>
           </p>
           <div class="qr-wrapper">
             <canvas id="text-qr"></canvas>
           </div>
-          <p class="hint">The recipient will be prompted to copy the text content.</p>
+          <p class="hint" data-i18n="recipientPrompt">The recipient will be prompted to copy the text content.</p>
           <p class="hint" id="text-expiry-info"></p>
         </div>
       </section>
     </main>
 
     <footer class="app-footer">
-      <small>Data is stored temporarily for your current session only.</small>
+      <small data-i18n="dataStoredTemporarily">Data is stored temporarily for your current session only.</small>
     </footer>
   </body>
 </html>

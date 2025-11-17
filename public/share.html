@@ -5,32 +5,61 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <title>SyncBetween Share</title>
     <link rel="stylesheet" href="/styles.css" />
+    <script src="/i18n.js"></script>
     <script src="/share.js" defer></script>
   </head>
   <body>
     <header class="app-header">
-      <h1>SyncBetween</h1>
-      <p>Receiving shared content</p>
+      <div class="header-content">
+        <div>
+          <h1 data-i18n="appTitle">SyncBetween</h1>
+          <p data-i18n="receivingContent">Receiving shared content</p>
+        </div>
+        <div class="lang-switcher">
+          <button id="lang-btn" class="lang-btn" aria-label="Language">
+            <span id="lang-icon">🌐</span>
+          </button>
+          <div id="lang-menu" class="lang-menu" hidden>
+            <button class="lang-option" data-lang="en">English</button>
+            <button class="lang-option" data-lang="zh-TW">繁體中文</button>
+            <button class="lang-option" data-lang="zh-CN">简体中文</button>
+          </div>
+        </div>
+      </div>
     </header>
     <main class="app-main single-column">
+      <section class="card disclaimer-card">
+        <div class="disclaimer-content">
+          <strong class="disclaimer-title" data-i18n="disclaimerTitle">⚠️ Privacy & Security Notice</strong>
+          <p class="disclaimer-text" data-i18n="disclaimerText">This service stores your shared data temporarily in server memory. Please do not share sensitive, confidential, or personal information. Use this service at your own risk. The service provider is not responsible for any data loss or privacy breaches.</p>
+        </div>
+      </section>
       <section class="card">
         <h2 id="session-status">Connecting...</h2>
+        <div id="passphrase-prompt" class="passphrase-prompt" hidden>
+          <p data-i18n="passphraseRequired">This shared content is protected by a passphrase. Please enter the passphrase to continue:</p>
+          <form id="passphrase-form">
+            <input type="password" id="passphrase-input" data-i18n-placeholder="passphrasePlaceholder" placeholder="Enter passphrase" autocomplete="off" />
+            <button type="submit" data-i18n="submitPassphrase">Submit</button>
+          </form>
+          <p id="passphrase-error" class="error-message" hidden></p>
+        </div>
         <div id="session-details" hidden>
           <div id="file-view" hidden>
             <p id="file-count-message"></p>
             <div id="files-list" class="files-list"></div>
           </div>
           <div id="text-view" hidden>
-            <p>This text was shared with you:</p>
+            <p data-i18n="thisTextShared">This text was shared with you:</p>
             <pre id="shared-text"></pre>
-            <button id="copy-button">Copy Text</button>
+            <button id="copy-button" data-i18n="copyText">Copy Text</button>
           </div>
         </div>
         <div id="error-message" class="hint" hidden></div>
       </section>
     </main>
     <footer class="app-footer">
-      <small>Keep this window open until the transfer completes.</small>
+      <small data-i18n="keepWindowOpen">Keep this window open until the transfer completes.</small>
     </footer>
   </body>
 </html>

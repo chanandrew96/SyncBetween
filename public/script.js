@@ -1,6 +1,63 @@
+// i18n helper functions
+function updateI18nElements() {
+  document.querySelectorAll('[data-i18n]').forEach((el) => {
+    const key = el.getAttribute('data-i18n');
+    if (key) {
+      el.textContent = i18n.t(key);
+    }
+  });
+  
+  document.querySelectorAll('[data-i18n-placeholder]').forEach((el) => {
+    const key = el.getAttribute('data-i18n-placeholder');
+    if (key) {
+      el.placeholder = i18n.t(key);
+    }
+  });
+  
+  // Update select options
+  document.querySelectorAll('select option[data-i18n-option]').forEach((option) => {
+    const key = option.getAttribute('data-i18n-option');
+    if (key) {
+      option.textContent = i18n.t(key);
+    }
+  });
+}
+
+function setupLanguageSwitcher() {
+  const langBtn = document.getElementById('lang-btn');
+  const langMenu = document.getElementById('lang-menu');
+  
+  if (!langBtn || !langMenu) return;
+  
+  langBtn.addEventListener('click', (e) => {
+    e.stopPropagation();
+    langMenu.hidden = !langMenu.hidden;
+  });
+  
+  document.querySelectorAll('.lang-option').forEach((btn) => {
+    btn.addEventListener('click', (e) => {
+      e.stopPropagation();
+      const lang = btn.getAttribute('data-lang');
+      if (i18n.setLang(lang)) {
+        updateI18nElements();
+        updateDynamicText();
+        langMenu.hidden = true;
+      }
+    });
+  });
+  
+  // Close menu when clicking outside
+  document.addEventListener('click', () => {
+    langMenu.hidden = true;
+  });
+}
+
 document.addEventListener('DOMContentLoaded', () => {
+  setupLanguageSwitcher();
+  updateI18nElements();
   setupFileSharing();
   setupTextSharing();
+  updateDynamicText();
 });
 
 function setupFileSharing() {
@@ -47,7 +104,7 @@ function setupFileSharing() {
       if (files.length === 1) {
         fileLabel.textContent = `${files[0].name} (${formatBytes(files[0].size)})`;
       } else {
-        fileLabel.textContent = `${files.length} files selected (${formatBytes(totalSize)} total)`;
+        fileLabel.textContent = `${files.length} ${i18n.t('filesSelected')} (${formatBytes(totalSize)} ${i18n.t('total')})`;
       }
       
       // Display file list
@@ -64,7 +121,7 @@ function setupFileSharing() {
       fileList.hidden = false;
       submitButton.disabled = false;
     } else {
-      fileLabel.textContent = 'Choose files';
+      fileLabel.textContent = i18n.t('chooseFiles');
       fileList.hidden = true;
       fileList.innerHTML = '';
       submitButton.disabled = true;
@@ -78,7 +135,7 @@ function setupFileSharing() {
     const files = Array.from(fileInput.files);
     isSubmitting = true;
     submitButton.disabled = true;
-    submitButton.textContent = 'Preparing...';
+    submitButton.textContent = i18n.t('preparing');
 
     try {
       // Process all files
@@ -95,12 +152,16 @@ function setupFileSharing() {
       );
 
       const expiryMinutes = getExpiryMinutes();
+      const passphraseInput = document.querySelector('#file-passphrase');
+      const passphrase = passphraseInput.value.trim() || null;
+      
       const response = await fetch('/api/session/file', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ 
           files: fileData,
           expiresInMinutes: expiryMinutes,
+          passphrase: passphrase,
         }),
       });
 
@@ -131,7 +192,7 @@ function setupFileSharing() {
       showToast(error.message);
     } finally {
       isSubmitting = false;
-      submitButton.textContent = 'Generate Share Link';
+      submitButton.textContent = i18n.t('generateShareLink');
       submitButton.disabled = fileInput.files.length === 0;
     }
   });
@@ -182,22 +243,26 @@ function setupTextSharing() {
 
     const text = textArea.value.trim();
     if (!text) {
-      showToast('Please enter some text to share.');
+      showToast(i18n.t('pleaseEnterText'));
       return;
     }
 
     isSubmitting = true;
     submitButton.disabled = true;
-    submitButton.textContent = 'Preparing...';
+    submitButton.textContent = i18n.t('preparing');
 
     try {
       const expiryMinutes = getExpiryMinutes();
+      const passphraseInput = document.querySelector('#text-passphrase');
+      const passphrase = passphraseInput.value.trim() || null;
+      
       const response = await fetch('/api/session/text', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ 
           text,
           expiresInMinutes: expiryMinutes,
+          passphrase: passphrase,
         }),
       });
 
@@ -216,9 +281,12 @@ function setupTextSharing() {
         const hours = Math.floor(result.expiresInSeconds / 3600);
         const minutes = Math.floor((result.expiresInSeconds % 3600) / 60);
         if (hours > 0) {
-          expiryInfo.textContent = `This link will expire in ${hours} hour${hours > 1 ? 's' : ''} and ${minutes} minute${minutes !== 1 ? 's' : ''}.`;
+          const hourText = hours === 1 ? i18n.t('hour') : i18n.t('hours');
+          const minuteText = minutes === 1 ? i18n.t('minute') : i18n.t('minutes');
+          expiryInfo.textContent = `${i18n.t('linkExpiresIn')} ${hours} ${hourText} ${i18n.t('and')} ${minutes} ${minuteText}.`;
         } else {
-          expiryInfo.textContent = `This link will expire in ${minutes} minute${minutes !== 1 ? 's' : ''}.`;
+          const minuteText = minutes === 1 ? i18n.t('minute') : i18n.t('minutes');
+          expiryInfo.textContent = `${i18n.t('linkExpiresIn')} ${minutes} ${minuteText}.`;
         }
       }
       
@@ -228,7 +296,7 @@ function setupTextSharing() {
       showToast(error.message);
     } finally {
       isSubmitting = false;
-      submitButton.textContent = 'Generate Share Link';
+      submitButton.textContent = i18n.t('generateShareLink');
       submitButton.disabled = textArea.value.trim().length === 0;
     }
   });
@@ -274,5 +342,13 @@ function formatBytes(bytes) {
   const exponent = Math.min(Math.floor(Math.log(bytes) / Math.log(1024)), units.length - 1);
   const size = bytes / 1024 ** exponent;
   return `${size.toFixed(size >= 10 || exponent === 0 ? 0 : 1)} ${units[exponent]}`;
+}
+
+function updateDynamicText() {
+  // Update any dynamic text that might have been missed
+  const fileLabel = document.querySelector('#file-label');
+  if (fileLabel && !fileInput?.files?.length) {
+    fileLabel.textContent = i18n.t('chooseFiles');
+  }
 }
 
