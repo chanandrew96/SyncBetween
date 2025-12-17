@@ -1,0 +1,77 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Upload to SyncBetween</title>
+    <link rel="stylesheet" href="/styles.css" />
+    <script src="/i18n.js"></script>
+    <script src="/reverse.js" defer></script>
+  </head>
+  <body>
+    <header class="app-header">
+      <div class="header-content">
+        <div>
+          <h1 data-i18n="appTitle">SyncBetween</h1>
+          <p data-i18n="uploadToReceiver">Upload content to the receiver</p>
+        </div>
+        <div class="lang-switcher">
+          <button id="lang-btn" class="lang-btn" aria-label="Language">
+            <span id="lang-icon">🌐</span>
+          </button>
+          <div id="lang-menu" class="lang-menu" hidden>
+            <button class="lang-option" data-lang="en">English</button>
+            <button class="lang-option" data-lang="zh-TW">繁體中文</button>
+            <button class="lang-option" data-lang="zh-CN">简体中文</button>
+          </div>
+        </div>
+      </div>
+    </header>
+
+    <main class="app-main single-column">
+      <section class="card">
+        <h2 data-i18n="uploadContent">Upload Content</h2>
+        <p data-i18n="uploadInstructions">Provide your name (optional) and upload text or a file to the receiver.</p>
+
+        <form id="reverse-form">
+          <label class="field-label" for="uploader-name" data-i18n="uploaderName">Your name (optional)</label>
+          <input type="text" id="uploader-name" maxlength="80" class="input-field" placeholder="Alice" />
+          <br />
+          <label class="field-label" for="reverse-passphrase" data-i18n="passphraseLabel">Passphrase (optional):</label>
+          <input type="password" id="reverse-passphrase" class="input-field" data-i18n-placeholder="passphrasePlaceholder" placeholder="Enter passphrase to protect shared data" />
+
+          <div class="toggle-group">
+            <label>
+              <input type="radio" name="upload-type" value="text" checked />
+              <span data-i18n="shareText">Share Text</span>
+            </label>
+            <label>
+              <input type="radio" name="upload-type" value="file" />
+              <span data-i18n="shareFiles">Share File</span>
+            </label>
+          </div>
+
+          <div id="text-upload-area">
+            <textarea id="reverse-text" rows="6" class="input-field" data-i18n-placeholder="enterTextPlaceholder" placeholder="Enter your text here..."></textarea>
+          </div>
+
+          <div id="file-upload-area" class="hidden">
+            <label class="file-input">
+              <input type="file" id="reverse-file" />
+              <span id="reverse-file-label" data-i18n="chooseFiles">Choose files</span>
+            </label>
+          </div>
+
+          <button type="submit" id="reverse-submit" data-i18n="upload">Upload</button>
+          <p class="hint" id="reverse-status"></p>
+          <p class="error-message" id="reverse-error" hidden></p>
+        </form>
+      </section>
+    </main>
+
+    <footer class="app-footer">
+      <small data-i18n="keepWindowOpen">Keep this window open until the transfer completes.</small>
+    </footer>
+  </body>
+</html>
+

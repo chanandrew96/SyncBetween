@@ -57,6 +57,7 @@ document.addEventListener('DOMContentLoaded', () => {
   updateI18nElements();
   setupFileSharing();
   setupTextSharing();
+  setupReverseSharing();
   updateDynamicText();
 });
 
@@ -201,6 +202,241 @@ function setupFileSharing() {
   });
 }
 
+function setupReverseSharing() {
+  const form = document.querySelector('#reverse-create-form');
+  if (!form) return;
+
+  const expiryPreset = document.querySelector('#reverse-expiry-preset');
+  const expiryCustom = document.querySelector('#reverse-expiry-custom');
+  const passphraseInput = document.querySelector('#reverse-passphrase');
+  const openOnceCheckbox = document.querySelector('#reverse-open-once');
+  const maxInput = document.querySelector('#reverse-max');
+  const resultSection = document.querySelector('#reverse-share-result');
+  const shareLink = document.querySelector('#reverse-share-link');
+  const qrCanvas = document.querySelector('#reverse-qr');
+  const expiryInfo = document.querySelector('#reverse-expiry-info');
+  const uploadsSection = document.querySelector('#reverse-uploads');
+  const uploadList = document.querySelector('#reverse-upload-list');
+  const refreshBtn = document.querySelector('#reverse-refresh');
+
+  let reverseSessionId = null;
+  let hostSocket = null;
+  let uploads = [];
+
+  const cleanupSocket = () => {
+    if (hostSocket) {
+      hostSocket.close();
+      hostSocket = null;
+    }
+  };
+
+  const renderUploads = () => {
+    if (!uploadList) return;
+    uploadList.innerHTML = '';
+    if (!uploads.length) {
+      const empty = document.createElement('p');
+      empty.className = 'hint';
+      empty.textContent = i18n.t('noUploads') || 'No uploads yet.';
+      uploadList.appendChild(empty);
+      return;
+    }
+    uploads
+      .slice()
+      .sort((a, b) => b.createdAt - a.createdAt)
+      .forEach((u) => {
+        const item = document.createElement('div');
+        item.className = 'file-item-container';
+
+        const title = document.createElement('div');
+        title.className = 'file-name';
+        title.textContent = u.name || i18n.t('anonymous') || 'Anonymous';
+
+        const meta = document.createElement('div');
+        meta.className = 'file-meta';
+        const date = new Date(u.createdAt);
+        const timeStr = date.toLocaleString();
+        if (u.type === 'text') {
+          meta.textContent = `${i18n.t('shareText')} • ${timeStr}`;
+        } else if (u.type === 'file' && u.file) {
+          meta.textContent = `${u.file.name} (${u.file.mimeType}) • ${timeStr}`;
+        } else {
+          meta.textContent = timeStr;
+        }
+
+        item.appendChild(title);
+        item.appendChild(meta);
+
+        if (u.type === 'text') {
+          const pre = document.createElement('pre');
+          pre.className = 'file-preview';
+          pre.textContent = u.text || '';
+          item.appendChild(pre);
+
+          const copyBtn = document.createElement('button');
+          copyBtn.className = 'download-file-btn';
+          copyBtn.textContent = i18n.t('copyText');
+          copyBtn.addEventListener('click', async () => {
+            try {
+              await navigator.clipboard.writeText(u.text || '');
+              alert(i18n.t('textCopied'));
+            } catch {
+              alert(i18n.t('unableToCopyManual'));
+            }
+          });
+          item.appendChild(copyBtn);
+        } else if (u.type === 'file' && u.file) {
+          const dataBase64 = u.dataBase64 || (u.file && u.file.dataBase64);
+          if (!dataBase64) {
+            const missing = document.createElement('p');
+            missing.className = 'error-message';
+            missing.textContent = i18n.t('unableToLoadContent');
+            item.appendChild(missing);
+            uploadList.appendChild(item);
+            return;
+          }
+
+          const blob = base64ToBlob(dataBase64, u.file.mimeType || 'application/octet-stream');
+          const objectUrl = URL.createObjectURL(blob);
+
+          if (u.file.mimeType && u.file.mimeType.startsWith('image/')) {
+            const img = document.createElement('img');
+            img.className = 'file-preview';
+            img.src = objectUrl;
+            item.appendChild(img);
+          } else if (u.file.mimeType && u.file.mimeType.startsWith('video/')) {
+            const vid = document.createElement('video');
+            vid.className = 'file-preview';
+            vid.controls = true;
+            vid.playsInline = true;
+            vid.src = objectUrl;
+            item.appendChild(vid);
+          }
+
+          const dlBtn = document.createElement('button');
+          dlBtn.className = 'download-file-btn';
+          dlBtn.textContent = i18n.t('download');
+          dlBtn.addEventListener('click', () => {
+            const a = document.createElement('a');
+            a.href = objectUrl;
+            a.download = u.file.name || 'download';
+            document.body.appendChild(a);
+            a.click();
+            document.body.removeChild(a);
+          });
+          item.appendChild(dlBtn);
+        }
+
+        uploadList.appendChild(item);
+      });
+  };
+
+  const attachHostSocket = (wsUrl) => {
+    cleanupSocket();
+    hostSocket = new WebSocket(`${wsUrl}&role=host`);
+    hostSocket.addEventListener('message', (event) => {
+      try {
+        const data = JSON.parse(event.data);
+        if (data.event === 'uploads' && Array.isArray(data.uploads)) {
+          uploads = data.uploads.map((u) => ({
+            ...u,
+            dataBase64: u.dataBase64 || (u.file && u.file.dataBase64),
+          }));
+          renderUploads();
+        } else if (data.event === 'incomingUpload' && data.upload) {
+          uploads.push({
+            ...data.upload,
+            dataBase64: data.upload.dataBase64 || (data.upload.file && data.upload.file.dataBase64),
+          });
+          renderUploads();
+        }
+      } catch (err) {
+        console.error(err);
+      }
+    });
+  };
+
+  const fetchUploads = async () => {
+    if (!reverseSessionId) return;
+    const resp = await fetch(`/api/session/${reverseSessionId}/uploads`);
+    if (!resp.ok) return;
+    const data = await resp.json();
+    if (Array.isArray(data.uploads)) {
+      uploads = data.uploads.map((u) => ({
+        ...u,
+        dataBase64: u.dataBase64 || (u.file && u.file.dataBase64),
+      }));
+      renderUploads();
+    }
+  };
+
+  if (refreshBtn) {
+    refreshBtn.addEventListener('click', () => {
+      fetchUploads();
+    });
+  }
+
+  expiryPreset.addEventListener('change', () => {
+    if (expiryPreset.value === 'custom') {
+      expiryCustom.hidden = false;
+      expiryCustom.focus();
+    } else {
+      expiryCustom.hidden = true;
+      expiryCustom.value = '';
+    }
+  });
+
+  form.addEventListener('submit', async (e) => {
+    e.preventDefault();
+    const expiresInMinutes =
+      expiryPreset.value === 'custom'
+        ? parseInt(expiryCustom.value, 10) || 60
+        : parseInt(expiryPreset.value, 10);
+    const passphrase = passphraseInput.value.trim() || null;
+    const openOnce = openOnceCheckbox.checked;
+    let maxClients = parseInt(maxInput.value, 10);
+    if (isNaN(maxClients) || maxClients < 1 || maxClients > 50) {
+      maxClients = 5;
+    }
+
+    try {
+      const resp = await fetch('/api/session/reverse', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          expiresInMinutes,
+          passphrase,
+          openOnce,
+          maxClients,
+        }),
+      });
+      if (!resp.ok) {
+        const error = await resp.json().catch(() => ({}));
+        throw new Error(error.error || 'Failed to create reverse session.');
+      }
+      const result = await resp.json();
+      reverseSessionId = result.id;
+      shareLink.textContent = result.shareUrl;
+      shareLink.href = result.shareUrl;
+      drawQr(qrCanvas, result.shareUrl);
+
+      if (result.expiresInSeconds) {
+        const minutes = Math.floor(result.expiresInSeconds / 60);
+        expiryInfo.textContent = `${i18n.t('linkExpiresIn')} ${minutes} ${i18n.t('minutes')}.`;
+      }
+
+      resultSection.hidden = false;
+      uploadsSection.hidden = false;
+      uploads = [];
+      renderUploads();
+
+      attachHostSocket(result.wsUrl);
+      fetchUploads();
+    } catch (err) {
+      console.error(err);
+      alert(err.message);
+    }
+  });
+}
 function setupTextSharing() {
   const textArea = document.querySelector('#text-input');
   const submitButton = document.querySelector('#text-submit');
@@ -356,5 +592,27 @@ function updateDynamicText() {
   if (fileLabel && !fileInput?.files?.length) {
     fileLabel.textContent = i18n.t('chooseFiles');
   }
+
+  const reverseFileLabel = document.querySelector('#reverse-file-label');
+  if (reverseFileLabel) {
+    reverseFileLabel.textContent = i18n.t('chooseFiles');
+  }
+}
+
+function base64ToBlob(base64, mimeType) {
+  const byteCharacters = atob(base64);
+  const byteArrays = [];
+  const chunkSize = 1024;
+
+  for (let offset = 0; offset < byteCharacters.length; offset += chunkSize) {
+    const slice = byteCharacters.slice(offset, offset + chunkSize);
+    const byteNumbers = new Array(slice.length);
+    for (let i = 0; i < slice.length; i++) {
+      byteNumbers[i] = slice.charCodeAt(i);
+    }
+    byteArrays.push(new Uint8Array(byteNumbers));
+  }
+
+  return new Blob(byteArrays, { type: mimeType });
 }
 

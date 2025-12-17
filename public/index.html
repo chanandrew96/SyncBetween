@@ -90,6 +90,68 @@
       </section>
 
       <section class="card">
+        <h2 data-i18n="receiveUploads">Receive uploads</h2>
+        <p data-i18n="receiveUploadsDesc">Create a link/QR for others to upload files or text to you.</p>
+        <form id="reverse-create-form">
+          <div class="expiry-section">
+            <label for="reverse-expiry" data-i18n="sessionExpiryTime">Session expiry time:</label>
+            <div class="expiry-input-group">
+              <select id="reverse-expiry-preset">
+                <option value="15" data-i18n-option="15 minutes">15 minutes</option>
+                <option value="30" data-i18n-option="30 minutes">30 minutes</option>
+                <option value="60" selected data-i18n-option="1 hour">1 hour</option>
+                <option value="120" data-i18n-option="2 hours">2 hours</option>
+                <option value="240" data-i18n-option="4 hours">4 hours</option>
+                <option value="480" data-i18n-option="8 hours">8 hours</option>
+                <option value="1440" data-i18n-option="24 hours">24 hours</option>
+                <option value="custom" data-i18n-option="customMinutes">Custom (minutes)</option>
+              </select>
+              <input type="number" id="reverse-expiry-custom" min="1" max="10080" data-i18n-placeholder="minutes" placeholder="Minutes" hidden />
+            </div>
+          </div>
+
+          <div class="passphrase-section">
+            <label for="reverse-passphrase" data-i18n="passphraseLabel">Passphrase (optional):</label>
+            <input type="password" id="reverse-passphrase" data-i18n-placeholder="passphrasePlaceholder" placeholder="Enter passphrase to protect shared data" />
+            <p class="hint" data-i18n="passphraseHint">Recipients will need to enter this passphrase to access the shared content.</p>
+          </div>
+
+          <div class="open-once-section">
+            <label class="checkbox-label">
+              <input type="checkbox" id="reverse-open-once" />
+              <span data-i18n="openOnceLabel">Open once only (auto-delete after first successful access)</span>
+            </label>
+            <p class="hint" data-i18n="openOnceHint">The session will be deleted after the recipient closes the transfer.</p>
+          </div>
+
+          <label class="field-label" for="reverse-max" data-i18n="maxConnections">Maximum uploads (clients)</label>
+          <input type="number" id="reverse-max" min="1" max="50" value="5" />
+
+          <button type="submit" id="reverse-create-btn" data-i18n="generateShareLink">Generate Share Link</button>
+        </form>
+
+        <div class="share-result" id="reverse-share-result" hidden>
+          <h3 data-i18n="shareReady">Share Ready</h3>
+          <p>
+            <span data-i18n="shareLinkDesc">Share this link with another device:</span><br />
+            <a id="reverse-share-link" href="#" target="_blank" rel="noopener"></a>
+          </p>
+          <div class="qr-wrapper">
+            <canvas id="reverse-qr"></canvas>
+          </div>
+          <p class="hint" id="reverse-expiry-info"></p>
+        </div>
+
+        <div class="share-result" id="reverse-uploads" hidden>
+          <div class="list-header">
+            <h3 data-i18n="incomingUploads">Incoming uploads</h3>
+            <button id="reverse-refresh" class="small-btn" data-i18n="refresh">Refresh</button>
+          </div>
+          <div id="reverse-upload-list" class="files-list"></div>
+        </div>
+      </section>
+
+      <section class="card">
         <h2 data-i18n="shareText">Share Text</h2>
         <p data-i18n="shareTextDesc">Paste any text to share with another device.</p>
         <form id="text-share-form">

@@ -10,6 +10,7 @@ const server = http.createServer(app);
 const wss = new WebSocketServer({ server, path: '/ws' });
 
 const CHUNK_SIZE = 64 * 1024; // 64 KB chunks for streaming
+const MAX_FILE_SIZE_BYTES = 50 * 1024 * 1024; // 50 MB per file
 const SESSION_EXPIRY_MS = 60 * 60 * 1000; // 1 hour in milliseconds
 const sessions = new Map();
 const MAX_PASSPHRASE_ATTEMPTS = 5;
@@ -65,6 +66,7 @@ function createSession(type, payload, expiresInMinutes = null, options = {}) {
     openOnce: normalizeBoolean(openOnce),
     passphraseAttempts: 0,
     opened: false,
+    hosts: new Set(), // for reverse sessions
   };
   sessions.set(id, session);
   return session;
@@ -197,6 +199,50 @@ app.post('/api/session/text', (req, res) => {
   });
 });
 
+app.post('/api/session/reverse', (req, res) => {
+  const { expiresInMinutes, passphrase, openOnce, maxClients } = req.body || {};
+
+  // Validate expiry time
+  let expiryMinutes = null;
+  if (expiresInMinutes !== undefined && expiresInMinutes !== null) {
+    const parsed = parseInt(expiresInMinutes, 10);
+    if (isNaN(parsed) || parsed < 1 || parsed > 10080) {
+      return res.status(400).json({ error: 'Invalid expiry time. Must be between 1 and 10080 minutes (7 days).' });
+    }
+    expiryMinutes = parsed;
+  }
+
+  let maxConnections = parseInt(maxClients, 10);
+  if (isNaN(maxConnections) || maxConnections < 1 || maxConnections > 50) {
+    maxConnections = 5; // default
+  }
+
+  // Process passphrase
+  const passphraseHash = passphrase && typeof passphrase === 'string' && passphrase.trim()
+    ? hashPassphrase(passphrase.trim())
+    : null;
+
+  const session = createSession(
+    'reverse',
+    {
+      uploads: [],
+      maxConnections,
+    },
+    expiryMinutes,
+    { passphraseHash, openOnce }
+  );
+
+  const expiresInSeconds = expiryMinutes ? expiryMinutes * 60 : 3600;
+
+  return res.json({
+    id: session.id,
+    type: session.type,
+    shareUrl: `${req.protocol}://${req.get('host')}/upload/${session.id}`,
+    wsUrl: buildWsUrl(req, session.id),
+    expiresInSeconds,
+  });
+});
+
 app.get('/api/session/:id', (req, res) => {
   const session = sessions.get(req.params.id);
   if (!session) {
@@ -254,6 +300,27 @@ app.get('/api/session/:id', (req, res) => {
     });
   }
 
+  if (session.type === 'reverse') {
+    return res.json({
+      id: session.id,
+      type: session.type,
+      requiresPassphrase,
+      openOnce: session.openOnce,
+      maxConnections: session.payload.maxConnections,
+      uploads: session.payload.uploads.map((u) => ({
+        id: u.id,
+        name: u.name,
+        type: u.type,
+        file: u.file
+          ? { name: u.file.name, mimeType: u.file.mimeType, size: u.file.size }
+          : null,
+        text: u.text ? u.text.slice(0, 200) : null,
+        createdAt: u.createdAt,
+      })),
+      createdAt: session.createdAt,
+    });
+  }
+
   return res.status(500).json({ error: 'Unsupported session type.' });
 });
 
@@ -261,11 +328,42 @@ app.get('/share/:id', (req, res) => {
   res.sendFile(path.join(__dirname, 'public', 'share.html'));
 });
 
+app.get('/upload/:id', (req, res) => {
+  res.sendFile(path.join(__dirname, 'public', 'reverse.html'));
+});
+
+// Fetch uploads for reverse sessions
+app.get('/api/session/:id/uploads', (req, res) => {
+  const session = sessions.get(req.params.id);
+  if (!session || session.type !== 'reverse') {
+    return res.status(404).json({ error: 'Session not found.' });
+  }
+
+  if (session.expiresAt && Date.now() > session.expiresAt) {
+    sessions.delete(req.params.id);
+    return res.status(404).json({ error: 'Session has expired.' });
+  }
+
+  return res.json({
+    uploads: session.payload.uploads.map((u) => ({
+      id: u.id,
+      name: u.name,
+      type: u.type,
+      text: u.text || null,
+      file: u.file
+        ? { name: u.file.name, mimeType: u.file.mimeType, size: u.file.size, dataBase64: u.data.toString('base64') }
+        : null,
+      createdAt: u.createdAt,
+    })),
+  });
+});
+
 wss.on('connection', (socket, req) => {
   const { url } = req;
   const requestUrl = new URL(url, `http://${req.headers.host}`);
   const sessionId = requestUrl.searchParams.get('sessionId');
   const providedPassphrase = requestUrl.searchParams.get('passphrase');
+  const role = requestUrl.searchParams.get('role') || 'client';
 
   if (!sessionId) {
     socket.send(JSON.stringify({ event: 'error', message: 'Missing sessionId.' }));
@@ -320,12 +418,134 @@ wss.on('connection', (socket, req) => {
   };
 
   const cleanupSession = () => {
+    if (session.type === 'reverse') {
+      if (session.hosts) {
+        session.hosts.delete(socket);
+      }
+    }
     if (session.openOnce) {
       sessions.delete(sessionId);
     }
   };
 
   socket.on('close', cleanupSession);
+
+  if (session.type === 'reverse') {
+    if (role === 'host') {
+      if (!session.hosts) {
+        session.hosts = new Set();
+      }
+      session.hosts.add(socket);
+      // Send existing uploads metadata to host
+      socket.send(JSON.stringify({
+        event: 'uploads',
+        uploads: session.payload.uploads.map((u) => ({
+          id: u.id,
+          name: u.name,
+          type: u.type,
+          file: u.file ? { name: u.file.name, mimeType: u.file.mimeType, size: u.file.size } : null,
+          text: u.text ? u.text.slice(0, 200) : null,
+          createdAt: u.createdAt,
+        })),
+      }));
+      return;
+    }
+
+    // Client upload path
+    if (session.payload.uploads.length >= session.payload.maxConnections) {
+      socket.send(JSON.stringify({ event: 'sessionUsed', message: 'Maximum uploads reached for this session.' }));
+      return socket.close();
+    }
+
+    socket.on('message', (msg) => {
+      try {
+        const data = JSON.parse(msg.toString());
+        if (data.event === 'uploadText') {
+          if (session.payload.uploads.length >= session.payload.maxConnections) {
+            socket.send(JSON.stringify({ event: 'sessionUsed', message: 'Maximum uploads reached for this session.' }));
+            return socket.close();
+          }
+          const text = typeof data.text === 'string' ? data.text : '';
+          const name = typeof data.name === 'string' ? data.name.slice(0, 80) : '';
+          const upload = {
+            id: nanoid(8),
+            type: 'text',
+            text,
+            name,
+            createdAt: Date.now(),
+          };
+          session.payload.uploads.push(upload);
+          // Notify hosts
+          if (session.hosts) {
+            const payload = {
+              event: 'incomingUpload',
+              upload: {
+                ...upload,
+              },
+            };
+            session.hosts.forEach((hostSocket) => {
+              hostSocket.send(JSON.stringify(payload));
+            });
+          }
+          socket.send(JSON.stringify({ event: 'uploadReceived' }));
+          socket.close();
+        } else if (data.event === 'uploadFile') {
+          if (session.payload.uploads.length >= session.payload.maxConnections) {
+            socket.send(JSON.stringify({ event: 'sessionUsed', message: 'Maximum uploads reached for this session.' }));
+            return socket.close();
+          }
+          const { name, mimeType, dataBase64, size } = data.file || {};
+          if (!name || !mimeType || !dataBase64 || typeof size !== 'number') {
+            socket.send(JSON.stringify({ event: 'error', message: 'Invalid file payload.' }));
+            return socket.close();
+          }
+          const buffer = Buffer.from(dataBase64, 'base64');
+          if (buffer.length > MAX_FILE_SIZE_BYTES) {
+            socket.send(JSON.stringify({ event: 'error', message: 'File exceeds maximum allowed size of 50 MB.' }));
+            return socket.close();
+          }
+          if (buffer.length !== size) {
+            socket.send(JSON.stringify({ event: 'error', message: 'File size mismatch.' }));
+            return socket.close();
+          }
+          const uploaderName = typeof data.name === 'string' ? data.name.slice(0, 80) : '';
+          const upload = {
+            id: nanoid(8),
+            type: 'file',
+            file: { name, mimeType, size },
+            data: buffer,
+            name: uploaderName,
+            createdAt: Date.now(),
+          };
+          session.payload.uploads.push(upload);
+          // Notify hosts with file data
+          if (session.hosts) {
+            const payload = {
+              event: 'incomingUpload',
+              upload: {
+                id: upload.id,
+                type: 'file',
+                file: upload.file,
+                name: upload.name,
+                createdAt: upload.createdAt,
+                dataBase64: buffer.toString('base64'),
+              },
+            };
+            session.hosts.forEach((hostSocket) => {
+              hostSocket.send(JSON.stringify(payload));
+            });
+          }
+          socket.send(JSON.stringify({ event: 'uploadReceived' }));
+          socket.close();
+        }
+      } catch (err) {
+        socket.send(JSON.stringify({ event: 'error', message: 'Invalid message.' }));
+        socket.close();
+      }
+    });
+
+    return;
+  }
 
   if (session.type === 'file') {
     if (session.payload.files && Array.isArray(session.payload.files)) {

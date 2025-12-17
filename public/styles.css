@@ -13,6 +13,10 @@ body {
   flex-direction: column;
 }
 
+.hidden {
+  display: none !important;
+}
+
 .app-header,
 .app-footer {
   text-align: center;
@@ -417,6 +421,29 @@ textarea {
   margin-top: 0.25rem;
 }
 
+.list-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 1rem;
+}
+
+.small-btn {
+  width: auto;
+  min-width: 120px;
+  margin-top: 0;
+  padding: 0.5rem 0.75rem;
+}
+
+.input-field {
+  width: 100%;
+  padding: 0.75rem;
+  border-radius: 6px;
+  border: 1px solid #dadce0;
+  font-size: 1rem;
+  box-sizing: border-box;
+}
+
 .expiry-input-group {
   display: flex;
   gap: 0.5rem;
@@ -529,6 +556,12 @@ textarea {
 
   .checkbox-label {
     color: #e8eaed;
+  }
+
+  .input-field {
+    background: #202124;
+    color: #e8eaed;
+    border-color: #3c4043;
   }
 }
 
