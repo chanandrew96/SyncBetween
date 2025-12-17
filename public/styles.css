@@ -13,6 +13,50 @@ body {
   flex-direction: column;
 }
 
+.accordion {
+  border: 1px solid #dadce0;
+  border-radius: 10px;
+  margin-bottom: 1rem;
+  background: #fff;
+  overflow: hidden;
+}
+
+.accordion summary {
+  cursor: pointer;
+  list-style: none;
+  padding: 0.75rem 1rem;
+  display: flex;
+  align-items: center;
+  border-bottom: 1px solid #eceff1;
+}
+
+.accordion summary::-webkit-details-marker {
+  display: none;
+}
+
+.summary-content h2,
+.summary-content p {
+  margin: 0;
+}
+
+.summary-content h2 {
+  font-size: 1.2rem;
+  margin-bottom: 0.15rem;
+}
+
+.summary-content p {
+  color: #5f6368;
+  font-size: 0.95rem;
+}
+
+.accordion-body {
+  padding: 0.5rem 0.75rem 1rem;
+}
+
+.accordion .card + .card {
+  margin-top: 1rem;
+}
+
 .hidden {
   display: none !important;
 }
@@ -118,6 +162,27 @@ body {
 @media (min-width: 800px) {
   .app-main {
     grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
+  .accordion {
+    background: #202124;
+    border-color: #3c4043;
+  }
+
+  .accordion summary {
+    border-bottom-color: #3c4043;
+  }
+
+  .summary-content h2 {
+    color: #e8eaed;
+  }
+
+  .summary-content p {
+    color: #aeb0b4;
+  }
+
+  .accordion .card + .card {
+    margin-top: 1rem;
   }
 }
 
