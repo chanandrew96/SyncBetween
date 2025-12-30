@@ -19,13 +19,19 @@ app.use(express.json({ limit: '500mb' })); // Increased limit for metadata
 app.use(express.static(path.join(__dirname, 'public')));
 
 function buildShareUrl(req, id) {
-  const protocol = req.protocol;
+  // Check for HTTPS protocol, including proxy headers (e.g., X-Forwarded-Proto)
+  // This is important when deployed behind reverse proxies like Render, Heroku, etc.
+  const forwardedProto = req.get('x-forwarded-proto');
+  const protocol = forwardedProto || req.protocol;
   const host = req.get('host');
   return `${protocol}://${host}/share/${id}`;
 }
 
 function buildWsUrl(req, id) {
-  const isHttps = req.protocol === 'https';
+  // Check for HTTPS protocol, including proxy headers (e.g., X-Forwarded-Proto)
+  // This is important when deployed behind reverse proxies like Render, Heroku, etc.
+  const forwardedProto = req.get('x-forwarded-proto');
+  const isHttps = req.protocol === 'https' || forwardedProto === 'https';
   const protocol = isHttps ? 'wss' : 'ws';
   const host = req.get('host');
   return `${protocol}://${host}/ws?sessionId=${id}`;
@@ -234,10 +240,14 @@ app.post('/api/session/reverse', (req, res) => {
 
   const expiresInSeconds = expiryMinutes ? expiryMinutes * 60 : 3600;
 
+  // Build share URL with correct protocol (checking proxy headers)
+  const forwardedProto = req.get('x-forwarded-proto');
+  const shareProtocol = forwardedProto || req.protocol;
+  
   return res.json({
     id: session.id,
     type: session.type,
-    shareUrl: `${req.protocol}://${req.get('host')}/upload/${session.id}`,
+    shareUrl: `${shareProtocol}://${req.get('host')}/upload/${session.id}`,
     wsUrl: buildWsUrl(req, session.id),
     expiresInSeconds,
   });

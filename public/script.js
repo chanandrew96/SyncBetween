@@ -332,7 +332,18 @@ function setupReverseSharing() {
 
   const attachHostSocket = (wsUrl) => {
     cleanupSocket();
-    hostSocket = new WebSocket(`${wsUrl}&role=host`);
+    // Ensure WebSocket URL uses the correct protocol based on current page protocol
+    // This fixes issues when deployed behind proxies (e.g., Render)
+    const currentProtocol = window.location.protocol;
+    const wsProtocol = currentProtocol === 'https:' ? 'wss' : 'ws';
+    // Replace the protocol in the URL if needed
+    let correctedWsUrl = wsUrl;
+    if (wsUrl.startsWith('ws://') && wsProtocol === 'wss') {
+      correctedWsUrl = wsUrl.replace('ws://', 'wss://');
+    } else if (wsUrl.startsWith('wss://') && wsProtocol === 'ws') {
+      correctedWsUrl = wsUrl.replace('wss://', 'ws://');
+    }
+    hostSocket = new WebSocket(`${correctedWsUrl}&role=host`);
     hostSocket.addEventListener('message', (event) => {
       try {
         const data = JSON.parse(event.data);
